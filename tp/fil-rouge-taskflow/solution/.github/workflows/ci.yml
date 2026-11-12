@@ -1,109 +1,165 @@
 # ============================================================================
-# ci.yml : Intégration Continue (CI)
+# ci.yml : Intégration Continue de TaskFlow (Jour 2)
 #
-# À chaque Pull Request et à chaque push sur main, on vérifie automatiquement que
-# le code est propre (lint), fonctionne (tests) et se construit (build).
-# Si un job échoue, la PR affiche une croix rouge : on peut bloquer le merge
-# (Settings > Branches > "Require status checks to pass").
+# À chaque Pull Request et à chaque push sur main, une machine neutre vérifie que
+# le code est propre (lint, formatage), fonctionne (tests unitaires sur Node 20
+# et 22, tests d'intégration contre un vrai PostgreSQL), est assez testé
+# (seuil de couverture) et se construit (build du front, build des images).
+#
+# Les `name:` des jobs sont STABLES : ce sont les noms des checks requis par le
+# ruleset de main. Les renommer = bloquer toutes les PR (« Expected — Waiting
+# for status to be reported »).
+#   api (20), api (22)   lint + formatage + tests unitaires + couverture
+#   api-integration      tests d'intégration (service postgres:16-alpine)
+#   front                lint + formatage + tests + build + artefact front-dist
+#   docker-build         les deux Dockerfile se construisent (non requis)
 # ============================================================================
 
-# Nom affiché dans l'onglet "Actions" de GitHub
 name: CI
 
-# Déclencheurs ("on") : quand ce workflow démarre
 on:
-  pull_request:          # à l'ouverture et à chaque mise à jour d'une PR
+  # Sur les PR : TOUJOURS, sans filtre de chemins. Un filtre `paths` ici
+  # empêcherait les checks requis de s'exécuter sur une PR qui ne touche que
+  # la doc : elle resterait bloquée indéfiniment.
+  pull_request:
+  # Sur main : inutile de tout revérifier pour un commit de documentation.
   push:
-    branches: [main]     # et quand du code arrive sur main
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
 
-# Principe du moindre privilège : ce workflow a seulement le droit de LIRE le dépôt.
+# Moindre privilège : le GITHUB_TOKEN de ce workflow ne peut que LIRE le dépôt.
 permissions:
   contents: read
 
-# Si on pousse deux fois de suite sur la même branche, on annule l'ancien run
-# (inutile de tester un commit déjà dépassé).
+# Un seul run par PR (ou par branche) : un nouveau push annule le run devenu
+# inutile. Sur main, on n'annule jamais : chaque commit de main doit avoir
+# son verdict (c'est lui qui sera livré au Jour 3).
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # Seuil BLOQUANT de couverture des lignes de l'API (tests unitaires).
+  COVERAGE_MIN: 75
 
 jobs:
-  # ---------- Job 1 : l'API (lint + tests unitaires + tests d'intégration) ----
+  # ---------- api : lint + tests unitaires, sur deux versions de Node --------
   api:
-    name: API (lint + tests)
-    runs-on: ubuntu-latest      # machine virtuelle fournie par GitHub
+    name: api
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      # Si Node 22 échoue, on veut quand même le verdict de Node 20 (et inversement).
+      fail-fast: false
+      matrix:
+        # 20 = la version des images Docker ; 22 = la prochaine LTS à adopter.
+        node: [20, 22]
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v7
 
-    # Un "service container" : GitHub démarre un conteneur Postgres à côté du job,
-    # exactement comme le service "db" de notre compose.yaml.
+      # Installe Node et met en cache ~/.npm (clé = hash du package-lock.json)
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+
+      # Installation exacte d'après le lockfile (échoue s'il est désynchronisé)
+      - run: npm ci
+
+      - name: Lint (ESLint)
+        run: npm run lint
+
+      - name: Formatage (Prettier)
+        run: npm run format:check
+
+      # Sans DATABASE_URL, les tests d'intégration sont ignorés (skipped) :
+      # ce job ne teste que la logique, avec le repository en mémoire.
+      - name: Tests unitaires + couverture
+        run: npm run test:coverage
+
+      # Résumé lisible sur la page du run + seuil bloquant.
+      # vitest a écrit coverage/coverage-summary.json (reporter json-summary).
+      - name: Couverture (seuil ${{ env.COVERAGE_MIN }} %)
+        run: |
+          summary=coverage/coverage-summary.json
+          lines=$(jq -r '.total.lines.pct' "$summary")
+          {
+            echo "### Couverture de l'API (Node ${{ matrix.node }})"
+            echo ""
+            echo "| Métrique | Couverture |"
+            echo "|---|---|"
+            for metric in lines statements functions branches; do
+              echo "| ${metric} | $(jq -r ".total.${metric}.pct" "$summary") % |"
+            done
+            echo ""
+            echo "Seuil bloquant sur les lignes : **${COVERAGE_MIN} %**"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if awk -v p="$lines" -v min="$COVERAGE_MIN" 'BEGIN { exit !(p < min) }'; then
+            echo "::error title=Couverture insuffisante::lignes ${lines} % < seuil ${COVERAGE_MIN} %"
+            exit 1
+          fi
+          echo "Couverture des lignes : ${lines} % (seuil ${COVERAGE_MIN} %)"
+
+  # ---------- api-integration : contre un vrai PostgreSQL ---------------------
+  api-integration:
+    name: api-integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # « Service container » : GitHub démarre Postgres à côté du job, comme le
+    # service db de compose.yaml. Même version qu'en dev et en prod.
     services:
       postgres:
         image: postgres:16-alpine
         env:
           POSTGRES_USER: taskflow
-          POSTGRES_PASSWORD: taskflow
+          POSTGRES_PASSWORD: taskflow # base jetable, détruite avec le job : pas un secret
           POSTGRES_DB: taskflow
         ports:
-          - 5432:5432            # accessible sur localhost:5432 depuis le job
-        # Le job ne démarre les steps qu'une fois la base prête
+          - 5432:5432 # les steps tournent SUR la VM : ils joignent localhost:5432
         options: >-
-          --health-cmd "pg_isready -U taskflow"
+          --health-cmd "pg_isready -U taskflow -d taskflow"
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
-
-    # Toutes les commandes `run:` de ce job s'exécutent dans le dossier api/
     defaults:
       run:
         working-directory: api
-
-    # DATABASE_URL défini => le test d'intégration (db.int.test.js) n'est plus ignoré
     env:
+      # DATABASE_URL défini => db.int.test.js n'est plus ignoré
       DATABASE_URL: postgres://taskflow:taskflow@localhost:5432/taskflow
-
     steps:
-      # Récupère le code du dépôt sur la machine du job
-      - uses: actions/checkout@v4
-
-      # Installe Node 20 et met en cache le dossier npm (installations plus rapides)
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 20
           cache: npm
           cache-dependency-path: api/package-lock.json
+      - run: npm ci
+      - name: Tests d'intégration (PostgreSQL 16)
+        run: npm run test:int
 
-      # `npm ci` = installation exacte d'après package-lock.json (reproductible)
-      - name: Installer les dépendances
-        run: npm ci
-
-      - name: Lint (ESLint)
-        run: npm run lint
-
-      - name: Formatage (Prettier)
-        run: npm run format:check
-
-      - name: Tests (unitaires + intégration)
-        run: npm test
-
-  # ---------- Job 2 : le front (lint + tests + build) ------------------------
-  # Les jobs sans `needs:` s'exécutent EN PARALLÈLE : api et front tournent en même temps.
+  # ---------- front : lint + tests + build + artefact -------------------------
   front:
-    name: Front (lint + tests + build)
+    name: front
     runs-on: ubuntu-latest
-
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: front
-
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 20
           cache: npm
           cache-dependency-path: front/package-lock.json
-
-      - name: Installer les dépendances
-        run: npm ci
+      - run: npm ci
 
       - name: Lint (ESLint)
         run: npm run lint
@@ -111,25 +167,44 @@ jobs:
       - name: Formatage (Prettier)
         run: npm run format:check
 
-      - name: Tests (Vitest)
-        run: npm test
+      # Couverture affichée pour information (pas de seuil : main.js manipule
+      # le DOM et relève de tests de bout en bout, pas de tests unitaires).
+      - name: Tests (Vitest) + couverture
+        run: |
+          npm run test:coverage
+          {
+            echo "### Couverture du front (information, non bloquante)"
+            echo ""
+            echo "Lignes : $(jq -r '.total.lines.pct' coverage/coverage-summary.json) %"
+          } >> "$GITHUB_STEP_SUMMARY"
 
-      # Vérifie que le site compile vraiment (erreur d'import, etc.)
-      - name: Build
+      # Le site compile-t-il vraiment ? (import cassé, erreur de syntaxe...)
+      - name: Build (Vite)
         run: npm run build
 
-  # ---------- Job 3 : les Dockerfile se construisent-ils ? --------------------
-  # On construit les images SANS les publier (push: false) : c'est juste un contrôle.
+      # Conserve le site compilé : téléchargeable depuis la page du run.
+      - name: Artefact front-dist
+        uses: actions/upload-artifact@v7
+        with:
+          name: front-dist
+          path: front/dist/ # upload-artifact ignore working-directory : chemin depuis la racine
+          retention-days: 7
+          if-no-files-found: error
+
+  # ---------- docker-build : les Dockerfile se construisent-ils ? -------------
+  # Ni requis ni publié (push: false) : la publication est le travail de
+  # release.yml (Jour 3). On attend les tests pour ne pas construire pour rien.
   docker-build:
-    name: Build des images Docker
+    name: docker-build
     runs-on: ubuntu-latest
-    needs: [api, front]          # attend que les deux jobs ci-dessus soient verts
+    timeout-minutes: 15
+    needs: [api, api-integration, front]
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
 
       - name: Build de l'image API
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./api
           push: false
@@ -137,7 +212,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=api
 
       - name: Build de l'image front
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./front
           push: false

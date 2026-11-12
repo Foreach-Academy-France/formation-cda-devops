@@ -1,122 +1,130 @@
 # TaskFlow
 
-Un petit gestionnaire de tâches, volontairement simple : c'est le **fil rouge** de la
-formation DevOps. Le code est fourni ; votre travail sera de le **conteneuriser, tester
-automatiquement, publier et déployer**.
+Un gestionnaire de tâches volontairement simple : c'est le **fil rouge** de la formation DevOps. Le code applicatif est
+fourni et testé ; votre travail porte sur tout ce qui l'entoure : intégration continue, livraison, infrastructure,
+supervision, sécurité.
+
+| Partie | Technologie | Port |
+| --- | --- | --- |
+| `front/` | Vite + JavaScript sans framework, servi par **Nginx** dans son image | 5173 en dev (Vite), 80 dans le conteneur |
+| `api/` | Node 20 + Express + `pg` | 3000 |
+| base | PostgreSQL 16 (table `tasks`, créée au démarrage de l'API) | 5432 |
+
+## Structure
 
 ```
 taskflow/
-├── front/   # Interface web : Vite + JavaScript (sans framework)
-└── api/     # API REST : Node 20 + Express + PostgreSQL
+├── api/
+│   ├── src/                 app.js (routes), server.js (démarrage), config.js, db.js, logger.js
+│   │   └── repositories/    memory.js (tests, sans base) et postgres.js (réel)
+│   ├── tests/               *.test.js (unitaires), db.int.test.js (intégration, base requise)
+│   ├── vitest.config.js     configuration des tests et de la couverture
+│   ├── Dockerfile           image de l'API (node:20-alpine, USER node, HEALTHCHECK)
+│   └── .env.example         variables d'environnement documentées
+├── front/
+│   ├── index.html, src/     interface (main.js) et client HTTP (api.js)
+│   ├── tests/               tests du client HTTP
+│   ├── vite.config.js       serveur de dev (proxy /api → :3000) et tests
+│   ├── Dockerfile           build multi-stage : Node compile, Nginx sert
+│   └── nginx.conf           sert le site et relaie /api et /health vers l'API
+├── compose.yaml             environnement de développement complet (db + api + front)
+├── .github/                 modèle de PR, CODEOWNERS, configuration d'actionlint
+└── docs/ARCHITECTURE.md     qui tourne où, qui parle à qui
 ```
 
 ## Ce qu'il faut sur votre poste
 
-- Node.js 20 ou plus (`node -v`)
-- Docker (uniquement pour lancer la base PostgreSQL pendant cette première étape)
+Git, Node.js 20 ou plus (`node -v`), Docker avec Compose v2 (`docker compose version`). Détails :
+`ressources/setup-poste.md` du dépôt de formation.
 
-## Lancer l'application en local
+## Lancer l'application
 
-### 1. La base de données PostgreSQL (une seule ligne)
-
-```bash
-docker run -d --name taskflow-db -e POSTGRES_USER=taskflow -e POSTGRES_PASSWORD=taskflow -e POSTGRES_DB=taskflow -p 5432:5432 postgres:16-alpine
-```
-
-> Ces valeurs correspondent à `DATABASE_URL` par défaut :
-> `postgres://taskflow:taskflow@localhost:5432/taskflow`.
-> Pour arrêter puis supprimer la base : `docker rm -f taskflow-db`.
-
-### 2. L'API (port 3000)
+### Option 1 : tout avec Docker Compose (recommandé)
 
 ```bash
-cd api
-npm ci
-npm run dev
+docker compose up -d --build     # construit les images api et front, démarre db, api, front
+docker compose ps                # les trois services doivent être "healthy" (20 à 30 s)
 ```
 
-Vérification : <http://localhost:3000/health> doit afficher `{"status":"ok","db":"up",...}`.
+Application : <http://localhost:8080> · santé : <http://localhost:8080/health>
+→ `{"status":"ok","db":"up","version":"dev","env":"local"}`.
 
-### 3. Le front (port 5173)
+| Commande | Effet |
+| --- | --- |
+| `docker compose logs -f api` | suivre les logs de l'API (une ligne JSON par requête) |
+| `docker compose exec db psql -U taskflow` | console SQL dans la base |
+| `docker compose up -d --build api` | reconstruire et relancer l'API après une modification |
+| `docker compose down` | arrêter et supprimer les conteneurs (**les données restent** dans le volume `pgdata`) |
+| `docker compose down -v` | idem **et** supprimer le volume : base vide au prochain démarrage |
 
-Dans un **second terminal** :
+Seul le front publie un port (8080) : l'API et la base ne sont joignables que sur le réseau privé de Compose.
+
+### Option 2 : en local, avec rechargement à chaud
 
 ```bash
-cd front
-npm ci
-npm run dev
+# 1. Une base PostgreSQL (seule)
+docker run -d --name taskflow-db -p 5432:5432 \
+  -e POSTGRES_USER=taskflow -e POSTGRES_PASSWORD=taskflow -e POSTGRES_DB=taskflow \
+  docker.io/library/postgres:16-alpine
+
+# 2. L'API (terminal 1)
+cd api && npm ci && npm run dev          # http://localhost:3000/health
+
+# 3. Le front (terminal 2)
+cd front && npm ci && npm run dev        # http://localhost:5173 (Vite relaie /api et /health vers :3000)
 ```
 
-Ouvrez <http://localhost:5173>. En développement, Vite redirige `/api` et `/health`
-vers l'API (voir `front/vite.config.js`).
+Arrêt de la base : `docker rm -f taskflow-db`. Ne lancez pas les deux options en même temps si vous publiez 5432.
 
 ## Variables d'environnement de l'API
 
-| Variable       | Défaut                                                  | Rôle                              |
-| -------------- | ------------------------------------------------------- | --------------------------------- |
-| `PORT`         | `3000`                                                  | Port d'écoute                     |
-| `DATABASE_URL` | `postgres://taskflow:taskflow@localhost:5432/taskflow`  | Connexion PostgreSQL              |
-| `APP_ENV`      | `local`                                                 | `local` ou `production`           |
-| `APP_VERSION`  | `dev`                                                   | Version affichée dans `/health`   |
+| Variable | Défaut | Rôle |
+| --- | --- | --- |
+| `PORT` | `3000` | port d'écoute |
+| `DATABASE_URL` | `postgres://taskflow:taskflow@localhost:5432/taskflow` | connexion PostgreSQL |
+| `APP_ENV` | `local` | `local`, `staging` ou `production` (affiché par `/health`) |
+| `APP_VERSION` | `dev` | version affichée par `/health` (le pipeline y mettra le SHA court du commit) |
 
-Voir `api/.env.example`. Ne commitez jamais un vrai fichier `.env`.
+Voir `api/.env.example`. **Ne commitez jamais** de fichier `.env` (il est dans `.gitignore`).
 
-## Qualité du code
+## Tests et qualité
 
 Dans `api/` **et** dans `front/` :
 
-| Commande               | Rôle                                         |
-| ---------------------- | -------------------------------------------- |
-| `npm run lint`         | Analyse du code avec ESLint                  |
-| `npm run format:check` | Vérifie le formatage Prettier                |
-| `npm run format`       | Reformate automatiquement le code            |
-| `npm test`             | Tests unitaires (Vitest)                     |
+| Commande | Rôle |
+| --- | --- |
+| `npm run lint` | ESLint |
+| `npm run format:check` / `npm run format` | vérifier / appliquer le formatage Prettier |
+| `npm test` | tests (Vitest) |
+| `npm run test:coverage` | tests + couverture : tableau dans la console, résumé dans `coverage/coverage-summary.json` |
 
-Spécifique à l'API : `npm run test:int` lance le test d'intégration avec une vraie base
-(il est ignoré si `DATABASE_URL` n'est pas défini) :
+Spécifique à l'API : les tests d'**intégration** (`tests/db.int.test.js`) ne tournent que si `DATABASE_URL` est
+défini ; sinon ils sont ignorés (*skipped*) :
 
 ```bash
-DATABASE_URL=postgres://taskflow:taskflow@localhost:5432/taskflow npm run test:int
+cd api
+npm test                     # Tests  27 passed | 10 skipped (37)
+DATABASE_URL=postgres://taskflow:taskflow@localhost:5432/taskflow npm run test:int   # Tests  10 passed (10)
 ```
+
+> Les tests d'intégration **vident** la table `tasks` : lancez-les contre une base jetable, jamais contre une base qui
+> contient des données utiles.
 
 ## Aperçu de l'API
 
-| Méthode et chemin           | Rôle                                  | Réponse          |
-| --------------------------- | ------------------------------------- | ---------------- |
-| `GET /api/tasks`            | Liste des tâches                      | 200              |
-| `POST /api/tasks`           | Crée une tâche (`{ "title": "..." }`) | 201              |
-| `PATCH /api/tasks/:id/toggle` | Bascule terminée / à faire          | 200 ou 404       |
-| `DELETE /api/tasks/:id`     | Supprime une tâche                    | 204 ou 404       |
-| `GET /health`               | État de l'API et de la base           | 200, ou 503 si la base est down |
+| Méthode et chemin | Rôle | Réponse |
+| --- | --- | --- |
+| `GET /api/tasks` | liste des tâches | 200 |
+| `POST /api/tasks` avec `{ "title": "..." }` | crée une tâche | 201, ou 400 si le titre est vide |
+| `PATCH /api/tasks/:id/toggle` | bascule terminée / à faire | 200 ou 404 |
+| `DELETE /api/tasks/:id` | supprime une tâche | 204 ou 404 |
+| `GET /health` | état de l'API et de la base | 200, ou **503** si la base ne répond pas |
 
-L'API écrit **une ligne JSON par requête** sur sa sortie standard (`method`, `path`,
-`status`, `ms`) : vous les retrouverez avec `docker logs` plus tard.
+`/health` sert au healthcheck Docker, au smoke test du pipeline et à la supervision.
 
----
+## Contribuer
 
-## Version « solution » : Docker, CI/CD et déploiement
-
-Cette version contient en plus tout ce qui est construit pendant la formation.
-
-### Tout lancer avec Docker Compose (une commande)
-
-```bash
-docker compose up -d --build
-docker compose ps            # db, api et front doivent être "healthy"
-```
-
-Application : <http://localhost:8080> · santé : <http://localhost:8080/health>.
-Arrêter : `docker compose down` (garde les données) ou `docker compose down -v` (efface aussi le volume).
-
-### Fichiers ajoutés
-
-| Fichier / dossier | Rôle |
-| --- | --- |
-| `api/Dockerfile`, `front/Dockerfile`, `front/nginx.conf`, `*/.dockerignore` | Images Docker |
-| `compose.yaml` | Environnement de développement (db + api + front) |
-| `compose.prod.yaml`, `.env.example` | Version « prod » (images ghcr.io, `.env`, service `proxy` HTTPS seul exposé) |
-| `.github/workflows/ci.yml` | Lint, tests (avec Postgres) et build à chaque PR / push |
-| `.github/workflows/release.yml` | Publication des images sur ghcr.io puis déploiement + smoke test |
-| `.github/pull_request_template.md`, `.github/CODEOWNERS` | Collaboration |
-| `deploy/nginx/taskflow.conf`, `deploy/gen-cert.sh`, `deploy/deploy.sh`, `deploy/backup.sh` | Prod : reverse proxy HTTPS, certificat, déploiement, sauvegarde |
-| `docs/ARCHITECTURE.md`, `docs/DEPLOIEMENT.md`, `docs/INCIDENTS.md` | Documentation d'exploitation |
+- Une branche par sujet, une PR vers `main` (protégée : revue obligatoire, checks requis), fusion en *squash*.
+- Titres de PR et messages de commit au format *Conventional Commits* : `feat:`, `fix:`, `ci:`, `build:`, `docs:`,
+  `test:`, `chore:`.
+- Avant de pousser : `npm run lint && npm run format:check && npm test` dans le(s) dossier(s) modifié(s).

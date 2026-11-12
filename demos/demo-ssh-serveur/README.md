@@ -1,10 +1,10 @@
 # Démo — SSH par clé et sécurisation d'un serveur
 
-> ⚠️ **Démo formateur uniquement.** Les apprenants **ne la reproduisent pas** : dans les TP, leur poste joue le rôle du serveur (`~/taskflow-prod/`) et le déploiement automatique passe par un runner local. Cette démo montre ce qui **change sur un vrai serveur** (VPS) pour qu'ils sachent le faire en entreprise et puissent en parler à l'oral du titre pro.
+> ⚠️ **Démo formateur uniquement.** Les apprenants **ne la reproduisent pas** : dans le TP, leur poste joue le rôle du serveur (`~/taskflow-staging/`, `~/taskflow-prod/`) et le déploiement passe par un runner self-hosted local (modèle **pull**). Cette démo montre le modèle **push** d'un vrai serveur (VPS) : le CI se connecte en SSH et pousse le déploiement. Les CDA doivent savoir le faire en entreprise et **comparer** les deux modèles à l'oral du titre pro.
 
 | | |
 |---|---|
-| **Jour / bloc** | J4 matin — Bloc 5.1 « Le serveur » (théorie + démo) |
+| **Jour / bloc** | J3 matin — Bloc 4.3 « Outils et pratiques » (push vs pull, vrai serveur) |
 | **Durée** | 15 min |
 | **Prérequis (variante A)** | un VPS ou serveur du formateur (Debian/Ubuntu) joignable, un compte avec `sudo`, une **session de secours ouverte** (console web de l'hébergeur) avant de toucher à `sshd_config` |
 | **Prérequis (variante B, secours)** | Docker/Podman, client OpenSSH, port **2223** libre ; image `docker.io/linuxserver/openssh-server:version-10.2_p1-r0` pré-téléchargée |
@@ -20,30 +20,51 @@ Remplacez `203.0.113.10` par l'IP de votre serveur. Gardez **une session SSH ou 
 | 2-4 | « On remplace le mot de passe par une **paire de clés** : la publique est un cadenas qu'on pose sur le serveur, la privée est la seule clé qui l'ouvre. » | `ssh-keygen -t ed25519 -C "formateur@demo"` (avec phrase de passe) | `ls -l ~/.ssh/` : `id_ed25519` (600) et `id_ed25519.pub`. « Laquelle puis-je envoyer par e-mail ? » |
 | 4-6 | « On pose le cadenas sur le serveur. » | `ssh-copy-id -i ~/.ssh/id_ed25519.pub deploy@203.0.113.10` | Sur le serveur : `cat ~/.ssh/authorized_keys`. « Que se passe-t-il si quelqu'un vole ma clé publique ? » (rien) |
 | 6-7 | « Un alias évite de retenir IP, utilisateur et clé. » | Ajouter dans `~/.ssh/config` :<br>`Host taskflow-prod`<br>`  HostName 203.0.113.10`<br>`  User deploy`<br>`  IdentityFile ~/.ssh/id_ed25519` | `ssh taskflow-prod` → connecté sans mot de passe. Montrer `~/.ssh/known_hosts` et expliquer l'empreinte demandée à la 1re connexion. |
-| 7-9 | « On ne travaille **jamais** en root : un utilisateur dédié, qui utilise `sudo` ponctuellement. » | `sudo adduser deploy && sudo usermod -aG sudo,docker deploy` (déjà fait avant la démo, le montrer) ; `id` | « Pourquoi le groupe `docker` équivaut-il presque à root ? » (lien avec le socket Docker monté par le runner du TP) |
+| 7-9 | « On ne travaille **jamais** en root : un utilisateur dédié, qui utilise `sudo` ponctuellement. » | `sudo adduser deploy && sudo usermod -aG sudo,docker deploy` (déjà fait avant la démo, le montrer) ; `id` | « Pourquoi le groupe `docker` équivaut-il presque à root ? » (lien avec le socket Docker monté par le runner du TP, bloc 4.3) |
 | 9-12 | « Une fois la clé testée, on ferme les portes : plus de mot de passe, plus de root. » | `sudoedit /etc/ssh/sshd_config.d/99-durcissement.conf` :<br>`PasswordAuthentication no`<br>`PermitRootLogin no`<br>`KbdInteractiveAuthentication no`<br>puis `sudo sshd -t && sudo systemctl reload ssh` | **Dans un autre terminal**, vérifier : `ssh taskflow-prod` OK ; `ssh -o PubkeyAuthentication=no deploy@203.0.113.10` → *Permission denied (publickey)*. « Pourquoi tester dans un 2e terminal avant de fermer le 1er ? » |
 | 12-14 | « Le pare-feu ne laisse entrer que ce qui est utile : SSH, HTTP, HTTPS. » | `sudo ufw allow OpenSSH && sudo ufw allow 80,443/tcp && sudo ufw enable && sudo ufw status verbose` | « Pourquoi autoriser OpenSSH **avant** `ufw enable` ? » — Mentionner : `unattended-upgrades`, `fail2ban`. ⚠️ Docker publie ses ports en contournant `ufw` : ne publier que le proxy (comme dans `compose.prod.yaml` du TP). |
 | 14-15 | « Pour déployer : copier les fichiers puis lancer la commande à distance. C'est ce que ferait un workflow GitHub Actions sur un vrai serveur. » | `scp compose.prod.yaml taskflow-prod:~/taskflow-prod/` puis `ssh taskflow-prod 'cd ~/taskflow-prod && ./deploy.sh abc1234'` | Montrer l'extrait de workflow ci-dessous. « Où doit être stockée la clé privée utilisée par GitHub ? » (secret `SSH_PRIVATE_KEY`, jamais dans le dépôt) |
 
-Extrait de job pour un vrai serveur (montré, non pratiqué) :
+Extrait de job pour un vrai serveur (montré, non pratiqué), à comparer avec `deploy-production` de `release.yml` :
 
 ```yaml
-deploy:
-  runs-on: ubuntu-latest
-  needs: build
-  environment: production
+deploy-production:
+  needs: [prepare, deploy-staging]
+  runs-on: ubuntu-latest                 # chez GitHub : c'est lui qui va vers le serveur (push)
+  environment: production                # approbation + secrets PROPRES à la prod
+  permissions:
+    contents: read
   steps:
-    - uses: actions/checkout@v4
-    - name: Clé SSH
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - name: Clé SSH (secret d'environment, jamais dans le dépôt)
+      env:
+        SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}   # empreinte du serveur : pas de ssh-keyscan aveugle
       run: |
         install -m 700 -d ~/.ssh
-        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
-        echo "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+        printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
+        printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
     - name: Copier et déployer
+      env:
+        HOST: ${{ vars.SERVER_HOST }}
+        TAG: ${{ needs.prepare.outputs.tag }}
       run: |
-        scp compose.prod.yaml deploy/deploy.sh deploy@${{ vars.SERVER_IP }}:~/taskflow-prod/
-        ssh deploy@${{ vars.SERVER_IP }} "cd ~/taskflow-prod && ./deploy.sh ${GITHUB_SHA::7}"
+        scp compose.prod.yaml deploy/*.sh "deploy@$HOST:/srv/taskflow/"
+        ssh "deploy@$HOST" "cd /srv/taskflow && ./deploy.sh $TAG"
+    - name: Smoke test (vrai certificat : pas de -k)
+      env:
+        HOST: ${{ vars.SERVER_HOST }}
+      run: curl -fsS --retry 10 --retry-all-errors --retry-delay 3 "https://$HOST/health"
 ```
+
+| | Push (SSH depuis le CI) | Pull (runner self-hosted, TP) |
+|---|---|---|
+| Ce qui doit être ouvert | port SSH du serveur, accessible depuis les IP de GitHub | rien en entrée : le runner appelle GitHub |
+| Secret à protéger | clé privée SSH dans GitHub | jeton d'enregistrement du runner ; le runner lui-même |
+| Risque principal | fuite de la clé = accès au serveur | code de workflow exécuté sur la machine (socket Docker = root) |
+| Variante | Ansible au lieu de `ssh` + `scp` | GitOps (ArgoCD, Flux) : l'agent du cluster tire l'état depuis Git ; Watchtower tire les images |
 
 **Après la démo** : retirer la clé de démo du serveur (`authorized_keys`) si elle n'a pas vocation à rester.
 

@@ -14,7 +14,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
-    "test:int": "vitest run tests/db.int.test.js"
+    "test:int": "vitest run tests/db.int.test.js",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "express": "^4.21.2",
@@ -22,6 +23,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
+    "@vitest/coverage-v8": "^2.1.9",
     "eslint": "^9.17.0",
     "eslint-config-prettier": "^9.1.0",
     "globals": "^15.14.0",

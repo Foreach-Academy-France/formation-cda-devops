@@ -1,112 +1,160 @@
-# Cheatsheet Git
+# Cheatsheet Git — travailler en équipe
 
-> Les 3 zones : **dossier de travail** (vos fichiers) -> `git add` -> **index** (prochain commit) -> `git commit` -> **dépôt local** -> `git push` -> **remote** (GitHub).
+> Les 4 zones : **répertoire de travail** → `git add` → **index** → `git commit` → **dépôt local** → `git push` →
+> **distant** (GitHub). Un commit = un instantané + son (ses) parent(s) ; une branche = une étiquette sur un commit ;
+> `HEAD` = « vous êtes ici ».
 
-## Démarrer et configurer
+## Configurer une fois par poste
 
-| Commande | Effet |
-|---|---|
-| `git config --global user.name "Nom"` / `user.email "mail"` | Votre identité (une fois par poste) |
-| `git init` | Transforme le dossier courant en dépôt |
-| `git clone git@github.com:user/repo.git` | Copie un dépôt distant |
-| `git remote -v` | Liste les remotes (`origin` = GitHub) |
+```bash
+git config --global user.name "Prénom Nom"
+git config --global user.email "votre-email-github@exemple.fr"
+git config --global init.defaultBranch main
+git config --global merge.conflictStyle zdiff3            # conflits avec l'ancêtre commun
+git config --global alias.lg "log --oneline --graph --all --decorate"
+git config --global core.editor "code --wait"             # facultatif
+```
 
 ## Le quotidien
 
 | Commande | Effet |
 |---|---|
-| `git status` | Où j'en suis ? (à lancer **souvent**) |
-| `git diff` / `git diff --staged` | Changements non indexés / indexés |
-| `git add fichier` / `git add -p` | Indexe un fichier / choisit les morceaux |
-| `git commit -m "feat: ajoute la liste des tâches"` | Enregistre un commit |
-| `git log --oneline --graph --all` | Historique en arbre |
-| `git push` / `git push -u origin ma-branche` | Envoie (le `-u` mémorise la branche, 1re fois) |
-| `git pull` / `git fetch` | Récupère + fusionne / récupère sans fusionner |
+| `git status` / `git status -sb` | Où j'en suis (version courte : branche, avance/retard sur le distant) |
+| `git diff` / `git diff --staged` | Changements non indexés / indexés (ce qui partira au commit) |
+| `git add -p` | Choisir les morceaux à indexer, un par un |
+| `git commit -m "feat(api): ajoute la pagination"` | Enregistrer un commit |
+| `git fetch` puis `git log origin/main` | Voir le distant **sans** toucher à vos fichiers |
+| `git pull` / `git push -u origin ma-branche` | Récupérer + intégrer / envoyer (`-u` la première fois) |
+| `git switch -c feature/x` / `git switch main` | Créer et basculer / changer de branche |
+| `git stash` / `git stash pop` | Mettre de côté / reprendre des changements non commités |
 
-Message de commit (Conventional Commits) : `feat:` (nouveauté), `fix:` (correction), `docs:`, `test:`, `refactor:`, `chore:`, `ci:`. Impératif, court, précis.
+## Conventional Commits
 
-## Branches
+```
+<type>(<portée>)<!>: <description à l'impératif, en minuscules, ≤ 72 caractères>
 
-| Commande | Effet |
+<corps : POURQUOI>
+
+<pied : BREAKING CHANGE: …   Refs: #42   Closes #42>
+```
+
+Types : `feat` (→ MINEUR), `fix` (→ CORRECTIF), `feat!` / `BREAKING CHANGE:` (→ MAJEUR), `docs`, `style`, `refactor`,
+`perf`, `test`, `build`, `ci`, `chore`, `revert`. Hook local : `git config core.hooksPath .githooks` (TP 1).
+
+## Lire l'historique
+
+| Question | Commande |
 |---|---|
-| `git branch` | Liste les branches locales (`*` = courante) |
-| `git switch -c feature/ma-carte` | Crée **et** bascule sur une branche |
-| `git switch main` | Change de branche |
-| `git merge feature/ma-carte` | Fusionne cette branche dans la branche courante |
-| `git branch -d feature/ma-carte` | Supprime une branche déjà fusionnée |
-| `git push origin --delete feature/ma-carte` | Supprime la branche sur GitHub |
+| Le graphe complet | `git log --oneline --graph --all` (ou `git lg`) |
+| Ce que ma branche a de plus que `main` | `git log --oneline main..feature/x` |
+| L'historique de `main` « PR par PR » | `git log --oneline --first-parent main` |
+| Les branches déjà fusionnées | `git branch --merged main` (une branche **squashée** n'y apparaît pas) |
+| Le point de départ commun | `git merge-base main feature/x` |
+| Quand cette chaîne est apparue / a disparu | `git log -S "DATABASE_URL" --oneline` |
+| Qui a écrit ces lignes | `git blame -L 10,20 fichier` |
+| Le détail d'un commit, ses parents | `git show <sha>` · `git log -1 --format=%P <sha>` |
 
-Flux **GitHub Flow** : `git switch main && git pull` > `git switch -c feature/x` > commits > `git push -u origin feature/x` > Pull Request > revue > merge > suppression de la branche.
+## Fusionner
 
-## Rebase (historique linéaire)
+| Stratégie | Commande locale | Bouton GitHub | Résultat |
+|---|---|---|---|
+| Fast-forward | `git merge feature/x` (si `main` n'a pas bougé) | — | `main` avance, aucun commit ajouté |
+| Commit de fusion | `git merge --no-ff feature/x` | *Create a merge commit* | Un commit à 2 parents |
+| Squash | `git merge --squash feature/x && git commit` | *Squash and merge* | **Un** commit ordinaire, message = titre de la PR |
+| Rebase (J2) | `git rebase main` puis fast-forward | *Rebase and merge* | Les commits rejoués en ligne droite |
 
-| Commande | Effet |
-|---|---|
-| `git fetch origin && git rebase origin/main` | Rejoue **vos** commits au-dessus de la dernière `main` |
-| `git pull --rebase` | `pull` sans commit de fusion inutile |
-| `git rebase --continue` / `--abort` | Après résolution d'un conflit / pour tout annuler |
-| `git push --force-with-lease` | Pousse une branche rebasée (variante prudente du « force push ») |
-
-> **Règle d'or : ne jamais rebaser une branche que d'autres utilisent** (comme `main`). Rebaser = réécrire l'historique.
+Après un squash : `git branch -D feature/x` (`-d` refuse, c'est normal).
 
 ## Conflits
 
-Git s'arrête : `CONFLICT (content): Merge conflict in index.html`.
-
 ```
 <<<<<<< HEAD
-<li>Alice</li>            <- votre version (branche courante)
+  votre version (branche courante)
+||||||| ancêtre commun             ← avec zdiff3
+  la version d'origine
 =======
-<li>Bob</li>              <- la version qui arrive
->>>>>>> feature/carte-bob
+  la version qui arrive
+>>>>>>> main
 ```
 
-1. Ouvrez le fichier (VS Code propose *Accept Current / Incoming / Both*). Gardez ce qui est juste, **supprimez les 3 marqueurs** `<<<<<<<`, `=======`, `>>>>>>>`.
-2. Testez que ça marche.
-3. `git add index.html` puis `git commit` (merge) ou `git rebase --continue` (rebase).
-4. Besoin de tout annuler : `git merge --abort` / `git rebase --abort`.
-
-## Tags et versions (SemVer)
-
-`vMAJEUR.MINEUR.CORRECTIF` : correctif sans nouveauté = `v1.0.1` ; nouvelle fonction compatible = `v1.1.0` ; changement incompatible = `v2.0.0`.
-
-| Commande | Effet |
+| Étape | Commande |
 |---|---|
-| `git tag -a v1.0.0 -m "Première version"` | Tag annoté sur le commit courant |
-| `git tag` / `git show v1.0.0` | Liste / détail |
-| `git push origin v1.0.0` (ou `git push --tags`) | Publie le tag (déclenche les workflows `on: push: tags`) |
-| `git tag -d v1.0.0` | Supprime le tag en local |
+| Quels fichiers ? | `git status` (`UU` = à résoudre) |
+| Quels commits en cause ? | `git log --merge --oneline` |
+| Après édition : plus de marqueur ? | `git diff --check` |
+| Valider la résolution | `git add <fichier>` puis `git commit --no-edit` (merge) ou `git rebase --continue` |
+| Tout annuler | `git merge --abort` / `git rebase --abort` |
+
+Conflit **textuel** (deux ajouts) : souvent garder les deux. Conflit **sémantique** (deux intentions) : décider **avec**
+l'autre auteur, écrire la décision dans la PR, faire relire.
 
 ## Annuler (du plus doux au plus brutal)
 
-| Situation | Commande |
+| Situation | Commande | Sûr sur une branche partagée ? |
+|---|---|---|
+| Fichier modifié, pas encore indexé | `git restore fichier` | — (local) |
+| Fichier indexé par erreur | `git restore --staged fichier` | — (local) |
+| Corriger le **dernier** commit (message, oubli) | `git add oubli && git commit --amend` | Non |
+| Défaire N commits, garder les changements **indexés** | `git reset --soft HEAD~N` | Non |
+| Défaire N commits, garder les changements **non indexés** | `git reset HEAD~N` (`--mixed`) | Non |
+| Défaire N commits **et** les changements | `git reset --hard HEAD~N` (irréversible pour le non-commité) | Non |
+| Annuler un commit **déjà poussé** | `git revert <sha>` (crée un commit inverse) | **Oui** |
+| Annuler une PR fusionnée | Bouton *Revert* sur la PR (crée une PR inverse) | **Oui** |
+| Commit fait sur `main` par erreur | `git branch feature/x && git reset --hard origin/main` | — |
+| « J'ai tout perdu » | `git reflog` puis `git reset --hard HEAD@{1}` ou `git branch secours <sha>` | — |
+| Branche supprimée trop vite | `git branch nom <sha>` (SHA affiché par `branch -D`, ou dans `git reflog`) | — |
+
+## GitHub : PR, revue, protection
+
+| Besoin | Où / commande |
 |---|---|
-| Fichier modifié, pas encore `add` : revenir à la version commitée | `git restore fichier` |
-| Fichier déjà `add` : le sortir de l'index | `git restore --staged fichier` |
-| Corriger le **dernier** commit (message/oubli), pas encore poussé | `git commit --amend` |
-| Annuler un commit **déjà poussé** (sûr : crée un commit inverse) | `git revert <sha>` |
-| Défaire les 2 derniers commits en gardant les changements | `git reset --soft HEAD~2` |
-| **Détruire** tout changement local (irréversible !) | `git reset --hard HEAD` |
-| Mise de côté temporaire | `git stash` puis `git stash pop` |
-| J'ai « perdu » un commit | `git reflog` (journal de tout), puis `git switch -c rescue <sha>` |
+| Ouvrir une PR | `gh pr create --fill` (ou `--title "feat: …"`), `--draft` si pas prête |
+| Relire | `gh pr checkout <n>` · `gh pr review <n> --approve` / `--request-changes -b "…"` / `--comment -b "…"` |
+| Fusionner | `gh pr merge <n> --squash --delete-branch` |
+| Fermer une issue au merge | `Closes #42` dans la description de la PR |
+| Protéger `main` | *Settings → Rules → Rulesets* : PR obligatoire, 1 approbation, Code Owners, conversations résolues, squash, *Block force pushes*, checks requis (J2) ; *bypass list* vide |
+| Voir les règles actives | `gh ruleset list` · `gh ruleset check main` |
+| Qui relit quoi | `.github/CODEOWNERS` : `chemin @pseudo1 @pseudo2` (le **dernier** motif qui correspond gagne ; **au moins deux** propriétaires) |
+| Modèle de description | `.github/pull_request_template.md` |
 
-## .gitignore
+**Conventional comments** : `praise:` · `issue (blocking):` · `suggestion (non-blocking):` · `question:` · `nitpick:` ·
+`todo:` · `thought:`. Proposer du code : bloc ` ```suggestion ` dans un commentaire de ligne.
 
-```
+## Rebase (J2)
+
+| Commande | Effet |
+|---|---|
+| `git fetch && git rebase origin/main` | Rejoue **vos** commits au-dessus de la dernière `main` |
+| `git rebase -i HEAD~3` | Réécrire les 3 derniers commits (`squash`, `reword`, `drop`, `fixup`) |
+| `git pull --rebase` | `pull` sans commit de fusion |
+| `git push --force-with-lease` | Pousser une branche **personnelle** rebasée (jamais `main`) |
+
+> **Règle d'or : on ne réécrit jamais une branche que d'autres utilisent.**
+
+## Tags et versions (J2)
+
+`vMAJEUR.MINEUR.CORRECTIF` : `fix` → `v1.0.1`, `feat` → `v1.1.0`, rupture → `v2.0.0`.
+`git tag -a v1.0.0 -m "…"` · `git push origin v1.0.0` · `gh release create v1.0.0 --generate-notes`.
+
+## .gitignore et secrets
+
+```gitignore
 node_modules/
 dist/
+coverage/
 .env
 *.log
 ```
 
-Un fichier **déjà suivi** reste suivi : `git rm --cached fichier` puis commit.
+`git check-ignore -v .env` (pourquoi est-il ignoré ?) · `git rm --cached fichier` (arrêter de suivre un fichier déjà commité).
 
-## Encadré : pièges fréquents
+## Pièges fréquents
 
-- **Commiter un secret** (`.env`, mot de passe, jeton) : le supprimer dans un nouveau commit **ne suffit pas** (il reste dans l'historique). Révoquez/changez le secret immédiatement, prévenez le formateur.
-- **Travailler sur `main`** par mégarde : `git switch -c ma-branche` avant de commiter (les changements suivent).
-- Écraser une branche partagée avec un push forcé efface le travail des autres. Si c'est nécessaire (après un rebase de **votre** branche) : `--force-with-lease`, et jamais sur `main`.
-- **`git reset --hard`** et `git clean -fd` détruisent sans corbeille.
-- Oublier `git pull` avant de commencer : conflits évitables.
-- `HEAD detached` : vous êtes sur un commit, pas une branche ; `git switch -c nom` pour le conserver, ou `git switch main`.
-- `git add .` sans `git status` : vous commitez des fichiers non voulus (`node_modules`, `.env`).
+- **Commiter un secret** : le supprimer ensuite ne suffit pas (historique, clones, forks). **Révoquez-le et changez-le**
+  immédiatement ; outillage (gitleaks) au J3.
+- **Travailler sur `main`** : `git switch -c ma-branche` avant de commiter (les changements suivent).
+- **`git reset --hard`** et **`git clean -fd`** détruisent sans corbeille ce qui n'a jamais été commité.
+- **`git branch -d` refuse après un squash** : normal ; vérifiez que la PR est fusionnée, puis `-D`.
+- **L'approbation disparaît** après un push : règle *Dismiss stale approvals* ; redemandez une revue.
+- **`HEAD detached`** : vous êtes sur un commit, pas une branche ; `git switch -c nom` pour garder le travail.
+- **`git add .` sans `git status`** : `node_modules`, `.env` ou fichiers de sauvegarde partent dans le commit.

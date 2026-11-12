@@ -1,0 +1,21 @@
+# Ce que montraient Prometheus et Alertmanager pendant l'incident (heures UTC).
+# Obtenu avec : curl -s localhost:9090/api/v1/alerts | jq ...   et   curl -s localhost:9093/api/v2/alerts | jq ...
+
+$ curl -s localhost:9090/api/v1/alerts | jq -r '.data.alerts[] | "\(.labels.alertname)  \(.state)  depuis \(.activeAt)"'
+Watchdog             firing   depuis 2026-10-20T08:12:40Z
+TaskFlowApiDown      firing   depuis 2026-10-22T14:03:25Z
+TaskFlowMetricsDown  firing   depuis 2026-10-22T14:03:25Z
+
+$ curl -s localhost:9093/api/v2/alerts | jq -r '.[] | "\(.labels.alertname)  \(.status.state)  inhibée par \(.status.inhibitedBy | length) alerte(s)"'
+Watchdog             active      inhibée par 0 alerte(s)
+TaskFlowApiDown      active      inhibée par 0 alerte(s)
+TaskFlowMetricsDown  suppressed  inhibée par 1 alerte(s)
+
+# Requêtes PromQL utiles (Prometheus > Graph, sur les 15 dernières minutes)
+$ promql 'up{job="taskflow-api"}'                          -> 0 depuis 14:03:25 (avant : 1)
+$ promql 'probe_success{job="blackbox-health"}'            -> 0 depuis 14:03:25
+$ promql 'probe_http_status_code{job="blackbox-health"}'   -> 502   (le front répond, mais ne joint pas l'API)
+$ promql 'max by (version) (last_over_time(taskflow_build_info[1h]))'
+{version="4e7a1c2"} 1                                      -> dernière version VUE en vie : la 9f3b2d1 n'a jamais démarré
+$ promql 'sum(rate(http_requests_total{job="taskflow-api"}[5m]))'
+                                                           -> la courbe s'arrête à 14:03 : plus aucune donnée, pas des erreurs

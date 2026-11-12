@@ -14,5 +14,12 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
+    // `npm run test:coverage` : couverture des fichiers de src/ (tableau console +
+    // coverage/coverage-summary.json lu par le pipeline).
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.js'],
+      reporter: ['text', 'json-summary'],
+    },
   },
 });

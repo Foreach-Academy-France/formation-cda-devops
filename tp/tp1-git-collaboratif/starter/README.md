@@ -1,36 +1,39 @@
-# Promo DWWM
+# Promo CDA
 
 Le site de présentation de la promo : une page d'accueil qui liste les membres, et **une carte HTML par personne**.
-Il est construit à plusieurs, avec Git et GitHub : chaque carte arrive par une Pull Request relue par un pair.
+Il est construit à plusieurs, avec Git et GitHub : chaque changement arrive par une Pull Request relue par un pair.
 
 ## Voir le site
 
-Pas d'installation : ouvrez `index.html` dans votre navigateur (double-clic, ou `xdg-open index.html` sous Linux,
-`open index.html` sous macOS, `explorer.exe index.html` sous WSL).
+Pas d'installation : ouvrez `index.html` dans votre navigateur (`xdg-open index.html` sous Linux, `open index.html`
+sous macOS, `explorer.exe index.html` sous WSL).
 
 ## Structure
 
 ```
 .
-├── index.html              # page d'accueil : la liste <ul class="promo"> des membres
-├── style.css               # styles communs (variables CSS en haut du fichier)
+├── index.html                     # page d'accueil : le titre et la liste <ul class="promo"> des membres
+├── style.css                      # styles communs (variables CSS en haut du fichier)
 ├── cartes/
-│   └── exemple.html        # modèle de carte : à copier en cartes/<prenom>.html
-├── CONTRIBUTING.md         # règles de contribution : branches, commits, Pull Requests
+│   └── exemple.html               # modèle de carte : à copier en cartes/<prenom>.html
+├── CONTRIBUTING.md                # règles de contribution : branches, commits, PR, revue
+├── .githooks/
+│   └── commit-msg                 # vérifie Conventional Commits (git config core.hooksPath .githooks)
 └── .github/
-    └── pull_request_template.md   # texte pré-rempli de chaque Pull Request
+    ├── pull_request_template.md   # texte pré-rempli de chaque Pull Request
+    └── CODEOWNERS                 # (ajouté pendant le TP) qui doit relire quoi
 ```
 
-## Ajouter sa carte
+## Démarrer
 
-En résumé (le détail est dans [`CONTRIBUTING.md`](CONTRIBUTING.md)) :
+```bash
+git config core.hooksPath .githooks   # active la vérification des messages de commit
+```
 
-1. créer une branche `feature/carte-<prenom>` ;
-2. copier `cartes/exemple.html` en `cartes/<prenom>.html` et le personnaliser ;
-3. ajouter **une** ligne dans la liste `<ul class="promo">` de `index.html` ;
-4. commiter, pousser, ouvrir une Pull Request et demander une revue.
+Puis suivez [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## Règles de la branche `main`
 
-`main` est protégée : on n'y pousse jamais directement. Tout passe par une Pull Request approuvée par au moins une
-autre personne.
+`main` est protégée par un **ruleset** : personne n'y pousse directement, pas même les administrateurs. Tout passe par
+une Pull Request approuvée par au moins une autre personne (dont un propriétaire du code concerné, voir `CODEOWNERS`),
+toutes les conversations résolues, puis fusionnée en **squash**.

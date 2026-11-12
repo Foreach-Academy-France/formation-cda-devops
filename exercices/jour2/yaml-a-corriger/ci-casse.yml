@@ -1,0 +1,68 @@
+# ci.yml de TaskFlow — VERSION CASSÉE (exercice 2.2)
+# GitHub refuse ce fichier ; une fois lisible, il ne fait toujours pas ce qu'on croit.
+# Ne le copiez pas dans votre dépôt taskflow.
+name: CI
+
+on:
+  push:
+    branch: [main]
+  pull_request
+
+permissions:
+  contents: write
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [20, 22]
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.version }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run lint
+	  - run: npm test
+
+  api-integration:
+    runs-on ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: taskflow
+          POSTGRES_PASSWORD: taskflow
+          POSTGRES_DB: taskflow
+        ports:
+          - 5432:5432
+    env:
+      DATABASE_URL: postgres://taskflow:taskflow@localhost:5432/taskflow
+    steps:
+      - uses: actions/checkout@v7
+      - name: Installer et lancer les tests d'intégration
+        working-directory: api
+        run:
+          npm ci
+          npm run test:int
+
+  front:
+    runs-on: ubuntu-latest
+    needs: [api-unit]
+    defaults:
+      run:
+        working-directory: front
+    steps:
+      - uses: actions/checkout@v7
+      - run: npm ci
+      - run: npm run build
+      - uses: actions/upload-artifact@v7
+        with:
+          name: front-dist
+          path: dist/

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Démo J4 — Bloc 5.1 : SSH par clé — VARIANTE DE SECOURS (sans vrai serveur)
+# Démo J3 — Bloc 4.3 : SSH par clé — VARIANTE DE SECOURS (sans vrai serveur)
 #   Démo FORMATEUR uniquement : les apprenants ne la reproduisent pas.
 #   Usage   : bash demo.sh             (pauses entre les étapes)
 #             DEMO_AUTO=1 bash demo.sh  (sans pause, pour tester)

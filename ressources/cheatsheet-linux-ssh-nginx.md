@@ -64,7 +64,7 @@ Redirections : `cmd > f` (écrase) · `cmd >> f` (ajoute) · `cmd 2>&1` (erreurs
 
 Se connecter à une machine distante, en chiffré. Sur un **vrai serveur** (VPS), on s'authentifie **par clé**, jamais par mot de passe.
 
-> Dans nos TP, le « serveur » est votre poste : pas de SSH nécessaire. Ces gestes sont ceux que vous ferez en entreprise.
+> Dans nos TP, les « serveurs » sont des dossiers de votre poste (`~/taskflow-staging`, `~/taskflow-prod`) pilotés par un runner self-hosted : pas de SSH nécessaire. Ces gestes sont ceux d'un déploiement **push** en entreprise (démo `demos/demo-ssh-serveur/`).
 
 ### Paire de clés
 
@@ -145,6 +145,8 @@ server {
 
 ### Tester et recharger : dans le conteneur `proxy`
 
+(Dans `~/taskflow-prod`, préfixez par `docker compose -f compose.prod.yaml` ou exportez `COMPOSE_FILE=compose.prod.yaml`.)
+
 | Commande | Effet |
 |---|---|
 | `docker compose exec proxy nginx -t` | **Teste** la configuration (toujours avant de recharger) |
@@ -161,7 +163,7 @@ mkdir -p certs
 openssl req -x509 -nodes -newkey rsa:2048 -days 365 \
   -keyout certs/taskflow.key -out certs/taskflow.crt \
   -subj "/CN=taskflow.localhost" \
-  -addext "subjectAltName=DNS:taskflow.localhost"
+  -addext "subjectAltName=DNS:taskflow.localhost,DNS:localhost,IP:127.0.0.1,DNS:host.docker.internal"
 chmod 600 certs/taskflow.key
 openssl x509 -in certs/taskflow.crt -noout -subject -dates     # vérifier
 ```
@@ -178,11 +180,12 @@ Le navigateur affiche un avertissement : **normal**, personne d'officiel n'a sig
 
 Tester sans navigateur :
 ```bash
+curl --cacert certs/taskflow.crt https://localhost/health                         # VÉRIFIE le certificat (mieux que -k)
 curl -k https://taskflow.localhost/health                                         # -k : ignorer l'avertissement
 curl -k --resolve taskflow.localhost:443:127.0.0.1 https://taskflow.localhost/    # si le nom ne se résout pas
 curl -I http://taskflow.localhost                                                 # doit répondre 301 vers https
 ```
-(Ports modifiés dans `.env` ? Ajoutez-les : `https://taskflow.localhost:8443`, `--resolve taskflow.localhost:8443:127.0.0.1`.)
+(Ports modifiés dans `.env` (`HTTP_PORT=8082`, `HTTPS_PORT=8443`) ? Ajoutez-les : `https://taskflow.localhost:8443`, `--resolve taskflow.localhost:8443:127.0.0.1`.)
 
 ### Lire les logs pour diagnostiquer
 
@@ -210,4 +213,22 @@ Méthode : symptôme > logs `proxy` > `docker compose ps` > logs du service en c
 - `proxy_pass http://localhost:3000` dans un conteneur : `localhost` est le conteneur Nginx lui-même ; utilisez le nom du service.
 - Fichier de config modifié sur l'hôte mais pas rechargé (`nginx -s reload`) ou pas monté dans le conteneur.
 - Un fichier `.env` ou une clé en droits `644` : `chmod 600`.
-- Port 80/443 occupé : voir `setup-poste.md` (variables `HTTP_PORT` / `HTTPS_PORT`).
+- Port 80/443 occupé (ou Docker rootless) : `HTTP_PORT=8082` et `HTTPS_PORT=8443` dans `~/taskflow-prod/.env` (8080 = dev, 8081 = staging).
+- `curl` depuis le conteneur du runner vers `localhost` : c'est le runner lui-même ; utilisez `host.docker.internal`.
+
+---
+
+## 4. Déployer TaskFlow (Jour 3)
+
+| Commande (dans le dossier de l'environnement) | Effet |
+|---|---|
+| `./deploy.sh a1b2c3d` | prod : pull, `up -d --wait`, reload du proxy, note `.deployed_tag` / `.previous_tag` |
+| `COMPOSE_FILE=compose.staging.yaml ./deploy.sh a1b2c3d` | idem en staging |
+| `./deploy.sh "$(cat .previous_tag)"` | rollback manuel |
+| `./smoke-test.sh http://localhost:8081/health a1b2c3d` | `/health` OK, base `up`, **bonne version** |
+| `SMOKE_CURL_OPTS="--cacert certs/taskflow.crt" ./smoke-test.sh https://localhost/health a1b2c3d` | idem en HTTPS vérifié |
+| `./backup.sh` · `gunzip -c backups/X.sql.gz \| docker compose exec -T db psql -U taskflow -d taskflow` | sauvegarder · restaurer |
+| `docker compose ps --format 'table {{.Service}}\t{{.Image}}\t{{.Status}}'` | quelle version tourne, est-elle `healthy` |
+| `gh workflow run release.yml -f tag=a1b2c3d -f environment=production` | rollback par le pipeline (approbation requise) |
+| `openssl rand -hex 24` | mot de passe aléatoire sans caractère spécial |
+| `chmod 600 .env` · `ls -l .env` → `-rw-------` | protéger un fichier de secrets |

@@ -1,0 +1,78 @@
+Run CI #73 — feat(api): regroupe les tâches par statut dans GET /api/tasks?group=done (#31)
+Workflow: .github/workflows/ci.yml   Event: pull_request   Branch: feature/group-by-status
+
+Résumé du run (onglet « Summary ») :
+  ✗ api (20)          1m 02s
+  ✓ api (22)            58s
+  ✓ api-integration   1m 11s
+  ✓ front               49s
+  ⊘ docker-build      skipped
+
+==================== Job: api (20) (ubuntu-latest) ====================
+2026-10-22T10:41:07.2213410Z ##[group]Run actions/setup-node@v7
+2026-10-22T10:41:07.2213992Z with:
+2026-10-22T10:41:07.2214310Z   node-version: 20
+2026-10-22T10:41:07.2214601Z   cache: npm
+2026-10-22T10:41:07.2214889Z   cache-dependency-path: api/package-lock.json
+2026-10-22T10:41:07.2215170Z ##[endgroup]
+2026-10-22T10:41:07.4410981Z Found in cache @ /opt/hostedtoolcache/node/20.19.5/x64
+2026-10-22T10:41:07.8120112Z node: v20.19.5
+2026-10-22T10:41:07.8120540Z npm: 10.8.2
+2026-10-22T10:41:08.1031337Z Cache restored successfully
+2026-10-22T10:41:08.1140021Z ##[group]Run npm ci
+2026-10-22T10:41:13.0021981Z added 301 packages, and audited 302 packages in 5s
+2026-10-22T10:41:13.0140107Z ##[endgroup]
+2026-10-22T10:41:13.0220415Z ##[group]Run npm run lint
+2026-10-22T10:41:14.9011873Z > taskflow-api@1.0.0 lint
+2026-10-22T10:41:14.9012306Z > eslint .
+2026-10-22T10:41:16.3301214Z ##[endgroup]
+2026-10-22T10:41:16.3410772Z ##[group]Run npm run format:check
+2026-10-22T10:41:17.0120943Z All matched files use Prettier code style!
+2026-10-22T10:41:17.0201190Z ##[endgroup]
+2026-10-22T10:41:17.0290447Z ##[group]Run npm run test:coverage
+2026-10-22T10:41:17.4420317Z > taskflow-api@1.0.0 test:coverage
+2026-10-22T10:41:17.4420779Z > vitest run --coverage
+2026-10-22T10:41:18.3310905Z  RUN  v2.1.9 /home/runner/work/taskflow/taskflow/api
+2026-10-22T10:41:18.3311392Z       Coverage enabled with v8
+2026-10-22T10:41:18.9902117Z  ✓ tests/config.test.js (2 tests) 4ms
+2026-10-22T10:41:19.0011045Z  ✓ tests/memory.test.js (8 tests) 7ms
+2026-10-22T10:41:19.0011583Z  ↓ tests/db.int.test.js (10 tests | 10 skipped)
+2026-10-22T10:41:19.1844120Z  ❯ tests/app.test.js (19 tests | 2 failed) 93ms
+2026-10-22T10:41:19.1844630Z    × API TaskFlow > GET /api/tasks?group=done > regroupe les tâches terminées et à faire 12ms
+2026-10-22T10:41:19.1845002Z    × API TaskFlow > GET /api/tasks?group=done > renvoie deux groupes vides sans tâche 4ms
+2026-10-22T10:41:19.1911288Z
+2026-10-22T10:41:19.1911730Z ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+2026-10-22T10:41:19.1912105Z
+2026-10-22T10:41:19.1912418Z  FAIL  tests/app.test.js > API TaskFlow > GET /api/tasks?group=done > regroupe les tâches terminées et à faire
+2026-10-22T10:41:19.1912874Z AssertionError: expected 500 to be 200 // Object.is equality
+2026-10-22T10:41:19.1913297Z  ❯ tests/app.test.js:212:31
+2026-10-22T10:41:19.1913701Z
+2026-10-22T10:41:19.1914099Z stdout | tests/app.test.js > API TaskFlow > GET /api/tasks?group=done > regroupe les tâches terminées et à faire
+2026-10-22T10:41:19.1914430Z {"level":"error","msg":"TypeError: Object.groupBy is not a function","path":"/api/tasks"}
+2026-10-22T10:41:19.1914822Z
+2026-10-22T10:41:19.1915133Z  FAIL  tests/app.test.js > API TaskFlow > GET /api/tasks?group=done > renvoie deux groupes vides sans tâche
+2026-10-22T10:41:19.1915472Z AssertionError: expected 500 to be 200 // Object.is equality
+2026-10-22T10:41:19.1915790Z  ❯ tests/app.test.js:223:31
+2026-10-22T10:41:19.1916103Z
+2026-10-22T10:41:19.1916418Z  Test Files  1 failed | 2 passed | 1 skipped (4)
+2026-10-22T10:41:19.1916730Z       Tests  2 failed | 27 passed | 10 skipped (39)
+2026-10-22T10:41:19.2210441Z ##[error]Process completed with exit code 1.
+
+--- Extrait du diff de la PR #31 (api/src/app.js) ---
++  app.get('/api/tasks', async (req, res, next) => {
++    try {
++      const tasks = await repository.list();
++      if (req.query.group === 'done') {
++        return res.json(Object.groupBy(tasks, (t) => (t.done ? 'done' : 'todo')));
++      }
++      res.json(tasks);
++    } catch (err) {
++      next(err);
++    }
++  });
+
+--- Poste de l'auteur ---
+$ node -v
+v22.11.0
+$ cd api && npm test
+      Tests  29 passed | 10 skipped (39)

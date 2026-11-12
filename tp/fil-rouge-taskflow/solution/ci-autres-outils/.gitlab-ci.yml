@@ -1,0 +1,136 @@
+# ============================================================================
+# .gitlab-ci.yml : équivalent GitLab CI de .github/workflows/ci.yml (Jour 2)
+#
+# Pour l'utiliser dans un projet GitLab, ce fichier doit être à la RACINE du
+# dépôt (ou indiqué dans Settings > CI/CD > General pipelines > CI/CD
+# configuration file : ci-autres-outils/.gitlab-ci.yml).
+# Vérification sans runner : Build > Pipeline editor > Validate (gitlab.com).
+#
+# Correspondance avec ci.yml : voir README.md de ce dossier.
+# ============================================================================
+
+# Les jobs d'un même stage tournent en parallèle ; les stages s'enchaînent.
+stages:
+  - verify
+  - package
+
+# ≈ on: pull_request + push: main
+#   - pipeline pour chaque merge request (MR = la PR de GitLab) ;
+#   - pipeline sur la branche par défaut, sauf si seuls des .md / docs changent.
+#     GitLab ne sait pas exclure des chemins : on liste ceux qui comptent.
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - api/**/*
+        - front/**/*
+        - compose.yaml
+        - .gitlab-ci.yml
+  # ≈ concurrency.cancel-in-progress : un nouveau commit annule les jobs
+  # « interruptible » du pipeline précédent.
+  auto_cancel:
+    on_new_commit: interruptible
+
+# Valeurs par défaut de tous les jobs (≈ runs-on + timeout-minutes)
+default:
+  image: node:20-alpine
+  interruptible: true
+  timeout: 10m
+
+variables:
+  COVERAGE_MIN: "75"
+  # Cache npm DANS le projet : seuls les chemins du projet peuvent être mis en cache.
+  npm_config_cache: "$CI_PROJECT_DIR/.npm"
+
+# Modèle réutilisable (le « . » le rend invisible : ce n'est pas un job).
+# ≈ actions/setup-node avec cache: npm, clé = contenu du lockfile.
+.npm-api:
+  cache:
+    key:
+      files: [api/package-lock.json]
+    paths: [.npm/]
+  before_script:
+    - cd api
+    - npm ci --prefer-offline
+
+# ---------- api : lint + tests unitaires, Node 20 et 22 ----------------------
+api:
+  extends: .npm-api
+  stage: verify
+  image: node:${NODE_VERSION}-alpine
+  # ≈ strategy.matrix : deux jobs « api: [20] » et « api: [22] »
+  parallel:
+    matrix:
+      - NODE_VERSION: ["20", "22"]
+  script:
+    - npm run lint
+    - npm run format:check
+    - npm run test:coverage
+    # Seuil bloquant (node est dans l'image, jq ne l'est pas)
+    - >-
+      node -e "const pct = require('./coverage/coverage-summary.json').total.lines.pct;
+      const min = Number(process.env.COVERAGE_MIN);
+      console.log('Couverture des lignes : ' + pct + ' % (seuil ' + min + ' %)');
+      if (pct < min) process.exit(1);"
+  # GitLab extrait la couverture du log et l'affiche sur la MR (4e colonne = lignes)
+  coverage: '/All files[^|]*\|[^|]*\|[^|]*\|[^|]*\|\s*([\d.]+)/'
+
+# ---------- api-integration : contre un vrai PostgreSQL ----------------------
+api-integration:
+  extends: .npm-api
+  stage: verify
+  # ≈ services: — le conteneur est joignable par son alias (« postgres »),
+  # pas par localhost : le job tourne lui-même dans un conteneur.
+  services:
+    - name: postgres:16-alpine
+      alias: postgres
+  variables:
+    # Les variables du job sont aussi transmises au service
+    POSTGRES_USER: taskflow
+    POSTGRES_PASSWORD: taskflow
+    POSTGRES_DB: taskflow
+    DATABASE_URL: postgres://taskflow:taskflow@postgres:5432/taskflow
+  # Pas de healthcheck à déclarer : le runner attend que le port exposé du
+  # service (5432) réponde avant de lancer le script.
+  script:
+    - npm run test:int
+
+# ---------- front : lint + tests + build + artefact --------------------------
+front:
+  stage: verify
+  cache:
+    key:
+      files: [front/package-lock.json]
+    paths: [.npm/]
+  before_script:
+    - cd front
+    - npm ci --prefer-offline
+  script:
+    - npm run lint
+    - npm run format:check
+    - npm run test:coverage
+    - npm run build
+  # ≈ actions/upload-artifact : téléchargeable depuis la page du job / de la MR
+  artifacts:
+    name: front-dist
+    paths: [front/dist/]
+    expire_in: 7 days
+
+# ---------- docker-build : les Dockerfile se construisent-ils ? --------------
+# ≈ job docker-build (needs: [api, api-integration, front]).
+# Docker-in-Docker : nécessite un runner « privileged » (c'est le cas des
+# runners partagés de gitlab.com).
+docker-build:
+  stage: package
+  needs: [api, api-integration, front]
+  image: docker:29-cli
+  services:
+    - docker:29-dind
+  variables:
+    DOCKER_HOST: tcp://docker:2376
+    DOCKER_TLS_CERTDIR: "/certs"
+  timeout: 15m
+  script:
+    - docker build -t taskflow-api:ci ./api
+    - docker build -t taskflow-front:ci ./front

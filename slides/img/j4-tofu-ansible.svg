@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 230" font-family="Helvetica, Arial, sans-serif" font-size="15">
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1e3a8a"/></marker></defs>
+  <rect width="900" height="230" fill="#ffffff"/>
+  <rect x="20" y="30" width="230" height="170" rx="12" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+  <text x="135" y="60" text-anchor="middle" font-weight="bold" fill="#1e3a8a" font-size="17">OpenTofu</text>
+  <text x="135" y="85" text-anchor="middle" fill="#334155">CRÉER (provisioning)</text>
+  <text x="40" y="115" fill="#334155" font-size="14">• réseau, volume, VM</text>
+  <text x="40" y="138" fill="#334155" font-size="14">• base managée, DNS</text>
+  <text x="40" y="161" fill="#334155" font-size="14">• conteneurs (notre TP)</text>
+  <text x="40" y="184" fill="#64748b" font-size="13">déclaratif + state</text>
+  <line x1="250" y1="115" x2="330" y2="115" stroke="#1e3a8a" stroke-width="2" marker-end="url(#a)"/>
+  <text x="290" y="105" text-anchor="middle" fill="#1e3a8a" font-size="12">output : IP</text>
+  <rect x="335" y="30" width="230" height="170" rx="12" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+  <text x="450" y="60" text-anchor="middle" font-weight="bold" fill="#78350f" font-size="17">Ansible</text>
+  <text x="450" y="85" text-anchor="middle" fill="#334155">CONFIGURER</text>
+  <text x="355" y="115" fill="#334155" font-size="14">• dossiers, .env (0600)</text>
+  <text x="355" y="138" fill="#334155" font-size="14">• paquets, utilisateurs</text>
+  <text x="355" y="161" fill="#334155" font-size="14">• certificats, services</text>
+  <text x="355" y="184" fill="#64748b" font-size="13">idempotent, sans state</text>
+  <line x1="565" y1="115" x2="645" y2="115" stroke="#1e3a8a" stroke-width="2" marker-end="url(#a)"/>
+  <rect x="650" y="30" width="230" height="170" rx="12" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+  <text x="765" y="60" text-anchor="middle" font-weight="bold" fill="#14532d" font-size="17">Pipeline (CD)</text>
+  <text x="765" y="85" text-anchor="middle" fill="#334155">DÉPLOYER</text>
+  <text x="670" y="115" fill="#334155" font-size="14">• image taguée par SHA</text>
+  <text x="670" y="138" fill="#334155" font-size="14">• smoke test /health</text>
+  <text x="670" y="161" fill="#334155" font-size="14">• rollback = autre tag</text>
+  <text x="670" y="184" fill="#64748b" font-size="13">immuable : on remplace</text>
+</svg>

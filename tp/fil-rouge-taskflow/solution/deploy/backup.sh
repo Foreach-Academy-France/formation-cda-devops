@@ -19,6 +19,9 @@ DEPLOY_DIR="${DEPLOY_DIR:-$(cd "$(dirname "$0")" && pwd)}"
 BACKUP_DIR="${BACKUP_DIR:-$DEPLOY_DIR/backups}"
 RETENTION_DAYS="${RETENTION_DAYS:-7}"
 
+# Prod par défaut ; en staging : COMPOSE_FILE=compose.staging.yaml ./backup.sh
+export COMPOSE_FILE="${COMPOSE_FILE:-compose.prod.yaml}"
+
 cd "$DEPLOY_DIR"
 mkdir -p "$BACKUP_DIR"
 
@@ -32,7 +35,7 @@ trap 'rm -f "$TEMP_FILE"' EXIT
 
 echo "==> Sauvegarde vers $FINAL_FILE"
 # -T : pas de terminal (indispensable dans un script ou un cron)
-docker compose -f compose.prod.yaml exec -T db \
+docker compose exec -T db \
   pg_dump -U taskflow -d taskflow --clean --if-exists \
   | gzip > "$TEMP_FILE"
 

@@ -1,0 +1,160 @@
+// ============================================================================
+// Jenkinsfile : équivalent Jenkins de .github/workflows/ci.yml (Jour 2)
+//
+// Pipeline DÉCLARATIF (syntaxe recommandée). Il suppose :
+//   - un agent qui dispose de Docker (plugin « Docker Pipeline ») : chaque étape
+//     tourne dans un conteneur node:XX-alpine, comme `runs-on` + `setup-node` ;
+//   - un job Jenkins de type « Pipeline » ou « Multibranch Pipeline » dont le
+//     Script Path vaut ci-autres-outils/Jenkinsfile.
+// Démo locale prête à l'emploi : demos/demo-jenkins-gitlab/ (Jenkins LTS en conteneur).
+//
+// Correspondance avec ci.yml : voir README.md de ce dossier.
+// ============================================================================
+
+pipeline {
+  // Pas d'agent global : chaque stage choisit le sien (≈ `runs-on` par job).
+  agent none
+
+  options {
+    // ≈ timeout-minutes (ici pour tout le pipeline)
+    timeout(time: 20, unit: 'MINUTES')
+    // ≈ concurrency + cancel-in-progress : un nouveau build annule le précédent
+    disableConcurrentBuilds(abortPrevious: true)
+    // Jenkins garde tout par défaut : on limite l'historique (disque du serveur !)
+    buildDiscarder(logRotator(numToKeepStr: '20'))
+  }
+
+  environment {
+    COVERAGE_MIN = '75'
+    // Dans le conteneur, Jenkins tourne avec SON uid (1000) et HOME=/ n'est pas
+    // inscriptible : on place le cache npm dans /tmp. Pas de cache entre deux
+    // builds (≠ actions/setup-node cache: npm) : sur un vrai agent, on monterait
+    // un volume ou on utiliserait un miroir npm d'entreprise (Nexus, Artifactory).
+    npm_config_cache = '/tmp/.npm'
+  }
+
+  stages {
+    // ---------- api : matrice Node 20 / 22 (≈ strategy.matrix) ----------------
+    // Les cellules de la matrice s'exécutent en parallèle.
+    stage('api') {
+      matrix {
+        axes {
+          axis {
+            name 'NODE_VERSION'
+            values '20', '22'
+          }
+        }
+        // Chaque cellule obtient un agent Docker et fait son propre checkout
+        // (implicite en déclaratif, ≈ actions/checkout).
+        agent {
+          docker { image "node:${NODE_VERSION}-alpine" }
+        }
+        stages {
+          stage('lint + tests unitaires') {
+            steps {
+              dir('api') { // ≈ defaults.run.working-directory
+                sh 'npm ci'
+                sh 'npm run lint'
+                sh 'npm run format:check'
+                sh 'npm run test:coverage'
+                // Seuil bloquant (≈ step « Couverture ») : node est dans l'image,
+                // jq ne l'est pas.
+                sh '''
+                  node -e "
+                    const pct = require('./coverage/coverage-summary.json').total.lines.pct;
+                    const min = Number(process.env.COVERAGE_MIN);
+                    console.log('Couverture des lignes : ' + pct + ' % (seuil ' + min + ' %)');
+                    if (pct < min) process.exit(1);
+                  "
+                '''
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // ---------- api-integration et front, en parallèle (≈ jobs sans needs) ---
+    stage('intégration et front') {
+      parallel {
+        stage('api-integration') {
+          // Agent « nu » qui sait lancer Docker : on y orchestre deux conteneurs.
+          agent any
+          steps {
+            // Jenkins n'a pas de `services:` : on lance Postgres nous-mêmes
+            // (motif « sidecar » du plugin Docker Pipeline) sur un réseau Docker
+            // dédié au build, où il porte le nom « db ».
+            script {
+              def net = "ci-${env.BUILD_TAG}".replaceAll(/[^A-Za-z0-9_.-]/, '-')
+              def pg = docker.image('postgres:16-alpine')
+              sh "docker network create ${net}"
+              try {
+                pg.withRun("--network ${net} --network-alias db -e POSTGRES_USER=taskflow -e POSTGRES_PASSWORD=taskflow -e POSTGRES_DB=taskflow") { db ->
+                  // ≈ options --health-cmd : attendre que la base accepte les connexions
+                  pg.inside("--network ${net}") {
+                    sh 'until pg_isready -h db -U taskflow -d taskflow; do sleep 1; done'
+                  }
+                  docker.image('node:20-alpine').inside("--network ${net}") {
+                    withEnv(['DATABASE_URL=postgres://taskflow:taskflow@db:5432/taskflow']) {
+                      dir('api') {
+                        sh 'npm ci'
+                        sh 'npm run test:int'
+                      }
+                    }
+                  }
+                }
+              } finally {
+                // Agent persistant : rien n'est jetable, on nettoie derrière soi.
+                sh "docker network rm ${net} || true"
+              }
+            }
+          }
+        }
+
+        stage('front') {
+          agent {
+            docker { image 'node:20-alpine' }
+          }
+          steps {
+            dir('front') {
+              sh 'npm ci'
+              sh 'npm run lint'
+              sh 'npm run format:check'
+              sh 'npm run test:coverage'
+              sh 'npm run build'
+            }
+          }
+          post {
+            success {
+              // ≈ actions/upload-artifact (name: front-dist)
+              archiveArtifacts artifacts: 'front/dist/**', fingerprint: true
+            }
+          }
+        }
+      }
+    }
+
+    // ---------- docker-build (≈ job docker-build, needs: [...]) ---------------
+    // Les stages s'enchaînent : celui-ci ne démarre que si tout ce qui précède est vert.
+    stage('docker-build') {
+      agent any
+      steps {
+        sh 'docker build -t taskflow-api:ci-$BUILD_NUMBER ./api'
+        sh 'docker build -t taskflow-front:ci-$BUILD_NUMBER ./front'
+      }
+      post {
+        always {
+          // Pas de VM jetable ici : l'agent est persistant, on fait le ménage.
+          sh 'docker rmi taskflow-api:ci-$BUILD_NUMBER taskflow-front:ci-$BUILD_NUMBER || true'
+        }
+      }
+    }
+  }
+
+  post {
+    failure {
+      // ≈ notifications : ici un simple message ; en entreprise mail, Slack, Teams…
+      echo 'CI TaskFlow en échec : ouvrez la vue du build pour trouver le stage rouge.'
+    }
+  }
+}

@@ -1,5 +1,7 @@
 # Cheatsheet Docker et Docker Compose
 
+> Dans ce cours, les `Dockerfile` et le `compose.yaml` de TaskFlow sont **fournis** : vous les lisez, les justifiez et les modifiez. Cette fiche sert à les comprendre et à les déboguer.
+>
 > **Image** = la recette figée (comme une classe). **Conteneur** = une instance en cours d'exécution (comme un objet). **Registre** = l'endroit où l'on stocke les images (Docker Hub, ghcr.io).
 
 ## Images
@@ -9,6 +11,8 @@
 | `docker pull nginx:1.27-alpine` | Télécharge une image |
 | `docker images` | Liste les images locales |
 | `docker build -t taskflow-api:dev ./api` | Construit une image depuis `./api/Dockerfile` |
+| `docker build --build-arg APP_VERSION=a1b2c3d -t taskflow-api:a1b2c3d ./api` | Passe un `ARG` au build (version affichée par `/health`) |
+| `docker image history taskflow-api:dev` | Les couches et leur taille : quelle instruction pèse lourd ? |
 | `docker tag taskflow-api:dev ghcr.io/moi/taskflow-api:1.0.0` | Ajoute un nom (tag) |
 | `docker push ghcr.io/moi/taskflow-api:1.0.0` | Envoie vers le registre (après `docker login ghcr.io`) |
 | `docker rmi image` / `docker image prune` | Supprime une image / les images orphelines |
@@ -123,6 +127,22 @@ volumes:
 
 Variables : le fichier `.env` à côté du compose est lu automatiquement. `${VAR:-défaut}` donne une valeur par défaut. Ports `"HOTE:CONTENEUR"` : seul le côté hôte est visible depuis votre poste.
 
+## Lire les fichiers fournis de TaskFlow : ce qu'il faut savoir justifier
+
+| Où | Choix | Pourquoi |
+|---|---|---|
+| `api/Dockerfile` | `COPY package*.json` puis `npm ci`, **ensuite** `COPY src` | le cache garde la couche des dépendances tant que le lockfile ne change pas |
+| `api/Dockerfile` | `npm ci --omit=dev` | build reproductible, pas d'outils de dev (ESLint, Vitest) en production |
+| `api/Dockerfile` | `USER node` | une faille dans l'API ne donne pas root dans le conteneur |
+| `api/Dockerfile` | `HEALTHCHECK` sur `/health` (503 si la base est KO) | « démarré » ≠ « prêt » ; Compose et la supervision s'en servent |
+| `api/Dockerfile` | `CMD ["node", ...]` (forme exec) | `docker stop` envoie SIGTERM directement à Node : arrêt propre |
+| `front/Dockerfile` | multi-stage (`AS build` puis `nginx`) | l'image finale ne contient ni Node ni les sources : plus petite, moins de surface d'attaque |
+| `compose.yaml` | volume nommé `pgdata` | les données survivent à `down` (pas à `down -v`) |
+| `compose.yaml` | `depends_on: condition: service_healthy` | l'API attend une base **prête** |
+| `compose.yaml` | seul `front` publie un port | l'API et la base ne sont joignables que sur le réseau privé ; Nginx relaie `/api` |
+
+Podman : `docker` peut être un alias de Podman ; les commandes sont les mêmes, `docker compose` délègue parfois à `podman-compose`. La cible des TP reste Docker Engine.
+
 ## Encadré : pièges fréquents
 
 - **`localhost` dans un conteneur = le conteneur lui-même**, pas votre poste ni la BDD. Entre services Compose, utilisez le **nom du service** (`db`).
@@ -130,7 +150,7 @@ Variables : le fichier `.env` à côté du compose est lu automatiquement. `${VA
 - **Secret dans l'image** (`ENV`, `COPY .env`) : il y reste pour toujours. Passez-le à l'exécution (`env_file`, `-e`) et ajoutez `.env` au `.dockerignore`.
 - **Tag `latest`** : ne dit pas quelle version tourne. Taguez avec la version ou le SHA du commit.
 - **`depends_on` sans `condition: service_healthy`** n'attend pas que la BDD soit prête.
-- **Port déjà utilisé** (`address already in use`) : changer le côté hôte (`8081:80`).
+- **Port déjà utilisé** (`address already in use`) : changer le côté hôte (`8088:80`). Ports de la semaine : 8080 TaskFlow dev, 8081 staging, 80/443 « prod », 3001 Grafana, 9090 Prometheus, 9093 Alertmanager, 8090 Jenkins (démo).
 - **Modification du code sans effet** : il faut reconstruire (`--build`).
 - Indentation YAML : espaces uniquement (jamais de tabulation), 2 espaces par niveau.
 - `docker compose` (v2) et non `docker-compose` (ancienne v1).

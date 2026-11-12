@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 400" width="1100" height="400" role="img" aria-label="Graphe des jobs de ci.yml : api (20), api (22), api-integration et front en parallèle, puis docker-build">
+<style>
+.t{font:600 19px system-ui,sans-serif;fill:#1e3a8a;text-anchor:middle}
+.s{font:15px system-ui,sans-serif;fill:#4b5563;text-anchor:middle}
+.ev{font:600 17px ui-monospace,'DejaVu Sans Mono',monospace;fill:#ffffff;text-anchor:middle}
+.lien{fill:none;stroke:#94a3b8;stroke-width:3}
+.req{fill:#ffffff;stroke:#2563eb;stroke-width:3}
+.opt{fill:#ffffff;stroke:#94a3b8;stroke-width:3;stroke-dasharray:8 6}
+.leg{font:15px system-ui,sans-serif;fill:#4b5563}
+</style>
+<rect width="1100" height="400" rx="14" fill="#fffdf7"/>
+<rect x="30" y="160" width="190" height="70" rx="10" fill="#1e3a8a"/>
+<text class="ev" x="125" y="190">pull_request</text>
+<text class="ev" x="125" y="215">push: main</text>
+<path class="lien" d="M220,195 C260,195 260,65 300,65"/>
+<path class="lien" d="M220,195 C260,195 260,155 300,155"/>
+<path class="lien" d="M220,195 C260,195 260,245 300,245"/>
+<path class="lien" d="M220,195 C260,195 260,335 300,335"/>
+<rect class="req" x="300" y="30" width="330" height="70" rx="10"/>
+<text class="t" x="465" y="60">api (20)</text>
+<text class="s" x="465" y="84">lint · Prettier · tests unitaires · couverture ≥ seuil</text>
+<rect class="req" x="300" y="120" width="330" height="70" rx="10"/>
+<text class="t" x="465" y="150">api (22)</text>
+<text class="s" x="465" y="174">idem, sur la prochaine LTS (matrix)</text>
+<rect class="req" x="300" y="210" width="330" height="70" rx="10"/>
+<text class="t" x="465" y="240">api-integration</text>
+<text class="s" x="465" y="264">npm run test:int · service postgres:16-alpine</text>
+<rect class="req" x="300" y="300" width="330" height="70" rx="10"/>
+<text class="t" x="465" y="330">front</text>
+<text class="s" x="465" y="354">lint · tests · build · artefact front-dist</text>
+<path class="lien" d="M630,65 C690,65 690,200 740,200"/>
+<path class="lien" d="M630,155 C690,155 690,200 740,200"/>
+<path class="lien" d="M630,245 C690,245 690,200 740,200"/>
+<path class="lien" d="M630,335 C690,335 690,200 740,200"/>
+<rect class="opt" x="740" y="165" width="200" height="70" rx="10"/>
+<text class="t" x="840" y="195">docker-build</text>
+<text class="s" x="840" y="219">needs: les 4 · non requis</text>
+<rect x="760" y="300" width="22" height="16" rx="3" class="req"/>
+<text class="leg" x="792" y="314">check requis par le ruleset</text>
+<rect x="760" y="335" width="22" height="16" rx="3" class="opt"/>
+<text class="leg" x="792" y="349">informatif</text>
+</svg>

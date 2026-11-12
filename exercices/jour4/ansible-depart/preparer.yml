@@ -1,0 +1,20 @@
+# Exercice 4.4 : point de départ. Complétez les TODO.
+#   ansible-playbook -i inventory.ini preparer.yml
+- name: Préparer le dossier de déploiement de l'application
+  hosts: local
+  gather_facts: true # nécessaire pour ansible_env.HOME
+  vars:
+    app_dir: "{{ ansible_env.HOME }}/exercice-ansible/app"
+    app_version: "1.0.0"
+    app_env: production
+    # TODO : app_port (8090), et un mot de passe de base généré UNE fois et
+    #        mémorisé : lookup('ansible.builtin.password', ...)
+
+  tasks:
+    # TODO 1 : créer app_dir, app_dir/releases et app_dir/shared (mode 0750), avec une boucle
+    # TODO 2 : écrire app_dir/VERSION (contenu : app_version), module copy
+    # TODO 3 : rendre templates/env.j2 vers app_dir/shared/.env (mode 0600) et notifier un handler
+    # TODO 4 : (facultatif) vérifier que le .env contient bien APP_ENV (module lineinfile en check, ou assert)
+
+  handlers:
+    # TODO 5 : un handler qui affiche « .env modifié : redémarrer l'application »

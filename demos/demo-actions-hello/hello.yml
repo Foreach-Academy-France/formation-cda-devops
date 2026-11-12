@@ -1,13 +1,14 @@
 # =============================================================================
-# Démo J3 — Bloc 4.1 : premier workflow GitHub Actions
+# Démo Jour 2 — Bloc 3.2 : premier workflow GitHub Actions, commenté ligne à ligne
 # À copier dans un dépôt de test : .github/workflows/hello.yml
 #
 # Vocabulaire :
-#   workflow = ce fichier (un processus automatisé)
+#   workflow  = ce fichier (un processus automatisé)
 #   événement = ce qui le déclenche (on:)
-#   job      = un groupe d'étapes exécuté sur UNE machine (runner)
-#   step     = une commande (run:) ou une action réutilisable (uses:)
-#   runner   = la machine qui exécute le job (ici une VM Ubuntu fournie par GitHub)
+#   job       = un groupe de steps exécuté sur UNE machine (runner)
+#   step      = une commande (run:) ou une action réutilisable (uses:)
+#   runner    = la machine qui exécute le job (ici une VM Ubuntu neuve, fournie par GitHub)
+# Comparez avec demos/demo-jenkins-gitlab/ (même pipeline en Jenkins et GitLab CI).
 # =============================================================================
 
 name: Hello DevOps                      # nom affiché dans l'onglet « Actions »
@@ -15,29 +16,40 @@ name: Hello DevOps                      # nom affiché dans l'onglet « Actions 
 on:                                     # ÉVÉNEMENTS déclencheurs
   push:
     branches: [main]                    # à chaque push sur main
-  pull_request:                         # à chaque PR (ouverte ou mise à jour)
+  pull_request:                         # à chaque PR (ouverture, nouveau commit)
   workflow_dispatch:                    # bouton « Run workflow » dans l'onglet Actions
     inputs:
       prenom:
         description: "Votre prénom"
         required: false
-        default: "la promo DWWM"
+        default: "la promo CDA"
   # schedule:                           # (aperçu) tous les lundis à 6 h UTC
   #   - cron: "0 6 * * 1"
 
 permissions:
   contents: read                        # moindre privilège : lecture seule du dépôt
 
+concurrency:                            # un nouveau push annule le run précédent de la même branche
+  group: hello-${{ github.ref }}
+  cancel-in-progress: true
+
 env:                                    # variables disponibles dans TOUS les jobs
   APP_NAME: TaskFlow
 
 jobs:
   hello:                                # identifiant du job (libre)
-    name: Dire bonjour                  # nom affiché
+    name: Dire bonjour                  # nom affiché (et nom du check sur la PR)
     runs-on: ubuntu-latest              # runner hébergé par GitHub
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.version.outputs.court }}   # transmis aux jobs qui font needs: hello
     steps:
+      # Une saisie utilisateur passe par env: et non directement dans le script :
+      # ${{ }} est remplacé AVANT l'exécution, une valeur piégée deviendrait du shell.
       - name: Afficher un message
-        run: echo "Bonjour ${{ inputs.prenom || 'la promo DWWM' }} 👋"
+        env:
+          PRENOM: ${{ inputs.prenom || 'la promo CDA' }}
+        run: echo "Bonjour $PRENOM"
 
       - name: Qui m'a déclenché ?
         run: |
@@ -50,13 +62,13 @@ jobs:
       - name: Sur quelle machine suis-je ?
         run: |
           uname -a
-          cat /etc/os-release | head -n 2
+          head -n 2 /etc/os-release
           node --version
           docker --version
           echo "Application : $APP_NAME"
 
       - name: Récupérer le code du dépôt
-        uses: actions/checkout@v4        # une ACTION : du code réutilisable publié sur GitHub
+        uses: actions/checkout@v7        # une ACTION : du code réutilisable publié sur GitHub
 
       - name: Lister les fichiers du dépôt
         run: ls -la
@@ -67,17 +79,33 @@ jobs:
 
       - name: Écrire un résumé dans la page du run
         run: |
-          echo "### Hello DevOps ✅" >> "$GITHUB_STEP_SUMMARY"
-          echo "Version : \`${{ steps.version.outputs.court }}\`" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "### Hello DevOps"
+            echo ""
+            echo "| Clé | Valeur |"
+            echo "|---|---|"
+            echo "| Version | \`${{ steps.version.outputs.court }}\` |"
+            echo "| Événement | ${{ github.event_name }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   tests:
     name: Faux tests
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs: hello                         # attend la réussite du job « hello » (sinon : en parallèle)
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 22]                   # deux jobs : « Faux tests (20) » et « Faux tests (22) »
     steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
       - name: Lancer les « tests »
+        env:
+          VERSION: ${{ needs.hello.outputs.version }}
         run: |
-          echo "Tests en cours…"
+          echo "Tests de la version $VERSION sur Node $(node --version)"
           sleep 3
           echo "3 tests OK"
           # Décommentez la ligne suivante pour voir un job ÉCHOUER (code de sortie ≠ 0) :

@@ -1,15 +1,14 @@
-# Formation DevOps — DWWM
+# Formation DevOps — CDA
 
-> Formation de 4 jours (28h) : de « ça marche sur ma machine » à « déployé automatiquement en HTTPS à chaque merge »
+> 31h30 pour construire la chaîne DevOps complète d'une application : collaboration Git, intégration continue, déploiement continu, infrastructure as code, monitoring et sécurité.
 
-**Public** : Titre professionnel **Développeur Web et Web Mobile** (DWWM)
-**Durée** : 4 jours × 7h (28 heures)
+**Public** : titre professionnel **Concepteur Développeur d'Applications** (CDA)
+**Durée** : 4 jours × 7h + une demi-journée par demi-groupe (31h30)
 **Institution** : ForEach Academy
 **Formateur** : Fabrice Claeys
-**Prérequis** : HTML, CSS, JavaScript · développement d'une application web (PHP, Node.js ou autre) · utilisation de Git et GitHub · bases Linux
-**Dates** : à confirmer
+**Prérequis** : développement d'une application web (front + back + base de données) · Git et GitHub (commit, branche, push, PR) · bases de Docker et de Linux
 
-📺 **Site de la formation (slides, TP en PDF)** : https://foreach-academy-france.github.io/formation-dwwm-devops/
+📺 **Site de la formation (slides, TP en PDF)** : https://foreach-academy-france.github.io/formation-cda-devops/
 
 ---
 
@@ -17,41 +16,42 @@
 
 À l'issue du module, vous serez capable de :
 
-- Comprendre les principes de la culture DevOps
-- Utiliser Git dans une démarche collaborative (branches, Pull Requests, revue de code, conflits)
-- Mettre en place un environnement de développement reproductible
-- Conteneuriser une application avec Docker et Docker Compose
-- Automatiser les tests et le déploiement avec GitHub Actions
-- Déployer une application conteneurisée derrière un reverse proxy Nginx en HTTPS (et savoir ce qui change sur un serveur Linux distant : SSH, utilisateur, pare-feu)
-- Diagnostiquer les erreurs de déploiement
-
-**Compétences visées (TP DWWM)** : préparer et exécuter le déploiement d'une application · utiliser les outils de gestion de versions · automatiser les tâches répétitives · collaborer avec les équipes de développement · assurer une mise en production fiable.
+- expliquer les principes et les bénéfices du DevOps, et leurs liens avec les méthodes Agile et Lean ;
+- travailler en équipe avec Git : branches, pull requests, revues de code, protection de branche, historique propre ;
+- mettre en place une intégration continue (GitHub Actions) et lire un pipeline Jenkins ou GitLab CI ;
+- automatiser la livraison et le déploiement d'une application, en distinguant **livraison continue** et **déploiement continu** ;
+- décrire une infrastructure en code (OpenTofu/Terraform, Ansible) ;
+- surveiller une application (logs, métriques, alertes) et utiliser ces retours pour améliorer le cycle de développement ;
+- intégrer la sécurité tout au long du pipeline (secrets, dépendances, SAST, DAST) et connaître les failles OWASP et les outils de pentest.
 
 ---
 
 ## Organisation
 
-**Chaque journée** : cours et démonstrations en blocs courts (45 min max), exercices guidés, puis TP fil rouge encadré.
+**Le matin** : cours en blocs courts (45 min max) et exercices de mise en situation.
+**L'après-midi** : TP fil rouge encadré.
+**Jour 5** : la classe est coupée en deux. Le demi-groupe A vient le matin, le demi-groupe B l'après-midi, pour la même séance de 3h30.
 
 ```
-code → pull request → tests automatiques → image Docker → déploiement → supervision
+code → pull request → CI → images scannées → staging → production → monitoring → alerte → amélioration
 ```
 
 ### Projet fil rouge : TaskFlow
 
-Un gestionnaire de tâches volontairement simple — **front** Vite (JavaScript) + **API** Node/Express + **PostgreSQL** — pour que l'effort porte sur le DevOps, pas sur le code. Vous partez d'un projet qui ne tourne qu'en local et vous construisez toute la chaîne autour :
+Un gestionnaire de tâches volontairement simple : **front** Vite (JavaScript) + **API** Node/Express + **PostgreSQL**. Les Dockerfiles et le `compose.yaml` de développement sont fournis. Toute la semaine, vous construisez autour de l'application.
 
 | Étape | Jour | Ce que vous ajoutez au projet |
 |-------|------|-------------------------------|
-| 1 | J2 | `Dockerfile` de l'API et du front, PostgreSQL en conteneur |
-| 2 | J3 | `compose.yaml` : toute l'application démarre en une commande |
-| 3 | J3 | Pipeline GitHub Actions : lint + tests + build à chaque PR, images publiées sur ghcr.io |
-| 4 | J4 | Déploiement en « production » (Nginx, HTTPS, `.env`, sauvegarde), puis **automatique** à chaque merge |
-| 5 | J4 | Analyse d'un incident de déploiement et post-mortem |
+| 0 | J2 | Votre dépôt `taskflow`, ruleset sur `main`, application lancée avec Compose |
+| 1 | J2 | `ci.yml` : lint, tests unitaires et d'intégration, build, matrix, cache, couverture, checks requis ; équivalents Jenkins et GitLab CI |
+| 2 | J3 | Déploiement manuel, puis `release.yml` : images ghcr.io scannées par Trivy, staging automatique, production après approbation, rollback ; Dependabot |
+| 3 | J4 | `infra/` : le staging décrit en OpenTofu, vérifié par `iac.yml` |
+| 4 | J4 | `/metrics`, Prometheus, Grafana, alerte ; analyse d'un incident, post-mortem et issue d'amélioration |
+| 5 | J5 | `security.yml` : gitleaks, npm audit, Semgrep, ZAP ; en-têtes de sécurité ; `SECURITE.md` |
 
-**Stack** : Git & GitHub · Docker & Docker Compose · PostgreSQL · GitHub Actions · ghcr.io · Nginx · Uptime Kuma
+**Stack** : Git & GitHub · Docker & Compose · GitHub Actions (Jenkins, GitLab CI en comparaison) · ghcr.io · Nginx · OpenTofu · Ansible · Prometheus · Grafana · Alertmanager · gitleaks · Trivy · Semgrep · OWASP ZAP · OWASP Juice Shop
 
-**Environnement de production** : une stack Docker Compose séparée sur votre poste (`~/taskflow-prod/`), derrière un conteneur Nginx en HTTPS, mise à jour automatiquement par un runner GitHub Actions local. Mêmes gestes qu'un vrai serveur, sans rien payer ; ce qui change sur un VPS (SSH, pare-feu, certbot) est montré en cours. Voir [ressources/lab/](./ressources/lab/).
+**Tout tourne sur votre poste** : le staging et la « production » sont deux stacks Compose séparées. Un runner GitHub Actions self-hosted, en conteneur sur le poste, déploie à chaque merge.
 
 Plan détaillé bloc par bloc : [plan-cours.md](./plan-cours.md)
 
@@ -59,106 +59,100 @@ Plan détaillé bloc par bloc : [plan-cours.md](./plan-cours.md)
 
 ## Programme
 
-### Jour 1 : Culture DevOps & Git collaboratif
+### Jour 1 : Culture DevOps & collaboration Git
 
 | Horaire | Contenu |
 |---------|---------|
-| **MATIN — Séquence 1 : Introduction au DevOps** | |
-| 9h00-9h45 | **Pourquoi le DevOps ?** Histoire, culture CALMS, cycle de vie d'une application |
-| 9h45-10h30 | **CI, livraison continue, déploiement continu** — collaboration Dev / Ops |
-| 10h45-11h15 | **Panorama des outils** |
-| 11h15-12h15 | **TP0 : Cartographie d'un pipeline** (étude de cas) |
-| **APRÈS-MIDI — Séquence 2 : Git collaboratif (1/2)** | |
-| 13h15-15h15 | Bases de Git, branches et merge, workflow d'équipe (GitHub Flow, Git Flow simplifié), Pull Request, revue de code, conflits |
-| 15h30-17h00 | **TP1 : Projet collaboratif** — branche feature, PR, revue, fusion, conflit |
+| **MATIN — Culture DevOps** | |
+| 9h00-9h30 | Accueil, vérification des postes |
+| 9h30-10h40 | **Pourquoi DevOps ?** CALMS, boucle infinie · **Exercice** : étude de cas « La Fromagerie » |
+| 10h50-12h00 | **Agile, Lean et DevOps** : gaspillages, flux, value stream mapping · **Exercice** : VSM |
+| 12h00-12h30 | **Mesurer** : métriques DORA, CI / livraison / déploiement continus · **Exercice** : pipeline cible |
+| **APRÈS-MIDI — Git en équipe** | |
+| 13h30-14h30 | Rappel Git, workflows d'équipe (GitHub Flow, trunk-based), PR, revue, rulesets |
+| 14h30-17h00 | **TP1 : projet collaboratif** : branches, PR, revue, conflit provoqué, débrief |
 
-**Slides** : [Jour 1](./slides/jour1-devops-git.md) · **TP** : [TP0](./tp/tp0-cartographie-pipeline/) · [TP1](./tp/tp1-git-collaboratif/) · **Exercices** : [jour 1](./exercices/jour1/)
+**Slides** : [Jour 1](./slides/jour1-culture-devops-git.md) · **TP** : [TP0](./tp/tp0-cartographie-pipeline/) · [TP1](./tp/tp1-git-collaboratif/) · **Exercices** : [jour 1](./exercices/jour1/)
 
----
-
-### Jour 2 : Git (fin) & Docker
+### Jour 2 : Git avancé & intégration continue
 
 | Horaire | Contenu |
 |---------|---------|
 | **MATIN** | |
-| 9h00-10h30 | **Séquence 2 (2/2)** : rebase, versioning (SemVer, tags, releases), fin du TP1, création du repo fil rouge |
-| 10h45-12h15 | **Séquence 3 : Docker (1/2)** — virtualisation vs conteneurs, Docker Engine, images, premières commandes |
+| 9h00-10h00 | Rebase interactif, SemVer, tags, releases · mise en place du fil rouge et rappel Docker express |
+| 10h00-12h30 | **Intégration continue** · **GitHub Actions** · Jenkins et GitLab CI · exercices (YAML cassé, déclencheurs, log en échec) |
 | **APRÈS-MIDI** | |
-| 13h15-14h45 | **Dockerfile**, volumes, réseaux, variables d'environnement |
-| 15h00-17h00 | **Fil rouge — Étape 1 : Dockeriser TaskFlow** |
+| 13h30-17h00 | **Fil rouge, étape 1 : pipeline CI** |
 
-**Slides** : [Jour 2](./slides/jour2-git-docker.md) · **TP** : [Étape 1](./tp/fil-rouge-taskflow/etape1-docker.md) · **Exercices** : [jour 2](./exercices/jour2/)
+**Slides** : [Jour 2](./slides/jour2-git-avance-ci.md) · **TP** : [Étape 0](./tp/fil-rouge-taskflow/etape0-mise-en-place.md) · [Étape 1](./tp/fil-rouge-taskflow/etape1-ci.md) · **Exercices** : [jour 2](./exercices/jour2/)
 
----
-
-### Jour 3 : Docker Compose & intégration continue
+### Jour 3 : Déploiement continu & sécurité du pipeline
 
 | Horaire | Contenu |
 |---------|---------|
-| **MATIN — Séquence 3 : Docker (2/2)** | |
-| 9h00-10h20 | **Docker Compose**, base de données conteneurisée |
-| 10h35-12h15 | **Fil rouge — Étape 2 : Environnement complet avec Compose** |
-| **APRÈS-MIDI — Séquence 4 : CI/CD (1/2)** | |
-| 13h15-15h15 | **GitHub Actions** : workflows YAML, déclencheurs, jobs, lint, tests, build, secrets, variables, images sur ghcr.io |
-| 15h30-17h00 | **Fil rouge — Étape 3 : Pipeline CI** |
+| **MATIN** | |
+| 9h00-11h00 | **Livraison vs déploiement continu**, environnements, stratégies (blue/green, canary, rollback), GitHub Environments, runner self-hosted · exercices |
+| 11h00-12h30 | **DevSecOps (1)** : secrets, gitleaks, Dependabot, Trivy · **Exercice** : le secret caché dans l'historique |
+| **APRÈS-MIDI** | |
+| 13h30-17h00 | **Fil rouge, étape 2 : déploiement manuel, pipeline de release, rollback** |
 
-**Slides** : [Jour 3](./slides/jour3-compose-ci.md) · **TP** : [Étape 2](./tp/fil-rouge-taskflow/etape2-compose.md) · [Étape 3](./tp/fil-rouge-taskflow/etape3-ci.md) · **Exercices** : [jour 3](./exercices/jour3/)
+**Slides** : [Jour 3](./slides/jour3-cd-securite-pipeline.md) · **TP** : [Étape 2](./tp/fil-rouge-taskflow/etape2-cd.md) · **Exercices** : [jour 3](./exercices/jour3/)
 
----
-
-### Jour 4 : Déploiement, automatisation & supervision
+### Jour 4 : Infrastructure as Code & monitoring
 
 | Horaire | Contenu |
 |---------|---------|
-| **MATIN — Séquence 5 : Déploiement** | |
-| 9h00-10h45 | **Le serveur** : VPS et SSH (théorie + démo), configuration, Nginx reverse proxy, variables d'environnement, HTTPS, sauvegarde |
-| 11h00-12h15 | **Fil rouge — Étape 4a : Déploiement manuel** |
+| **MATIN — Infrastructure as Code** | |
+| 9h00-12h30 | Pourquoi l'IaC · **OpenTofu / Terraform** · **Ansible** · exercices (drift, idempotence) |
 | **APRÈS-MIDI** | |
-| 13h15-14h45 | **Séquence 4 (2/2) : Déploiement continu** — runner, secrets, job de déploiement · **Étape 4b : Déploiement automatique** |
-| 15h00-16h00 | **Séquence 6 : Supervision et bonnes pratiques** — logs, monitoring, erreurs, documentation · **Étape 5 : Analyse d'un incident** |
-| 16h00-17h00 | **Évaluation** : QCM + présentation de votre pipeline |
+| 13h30-14h30 | **Fil rouge, étape 3 : le staging en OpenTofu** |
+| 14h30-17h00 | **Surveiller et apprendre** · **Fil rouge, étape 4 : métriques, dashboards, alerte, incident et post-mortem** |
 
-**Slides** : [Jour 4](./slides/jour4-deploiement-supervision.md) · **TP** : [Étape 4](./tp/fil-rouge-taskflow/etape4-deploiement.md) · [Étape 5](./tp/fil-rouge-taskflow/etape5-incident.md) · **Exercices** : [jour 4](./exercices/jour4/) · **Évaluation** : [modalités](./evaluation/)
+**Slides** : [Jour 4](./slides/jour4-iac-monitoring.md) · **TP** : [Étape 3](./tp/fil-rouge-taskflow/etape3-iac.md) · [Étape 4](./tp/fil-rouge-taskflow/etape4-monitoring.md) · **Exercices** : [jour 4](./exercices/jour4/)
 
-> On déploie d'abord **à la main**, puis on **automatise** ce qu'on vient de faire : *on n'automatise que ce qu'on sait faire manuellement.*
+### Jour 5 : DevSecOps (demi-groupe A 9h00-12h30, demi-groupe B 13h30-17h00)
+
+| Durée | Contenu |
+|-------|---------|
+| 20 min | Sécurité tout au long du cycle : SAST, DAST, SCA, triage |
+| 45 min | **Tour des failles de l'OWASP Top 10** |
+| 40 min | **Exercice** : chasse aux failles sur OWASP Juice Shop |
+| 25 min | **Outils de pentest** : nmap, ZAP, Burp Suite, sqlmap, nikto (démo) |
+| 55 min | **Fil rouge, étape 5 : workflow de sécurité, corrections** |
+| 15 min | **QCM** |
+
+**Slides** : [Jour 5](./slides/jour5-devsecops.md) · **TP** : [Étape 5](./tp/fil-rouge-taskflow/etape5-devsecops.md) · **Exercices** : [jour 5](./exercices/jour5/)
+
+> Fil conducteur : *on n'automatise que ce qu'on sait faire à la main* (déploiement manuel avant le pipeline), et *la sécurité commence dès le premier pipeline* (les secrets et les dépendances sont traités au jour 3).
 
 ---
 
-## Couverture du programme
+## Couverture du syllabus
 
-| Séquence | Durée | Placement | Travaux pratiques |
-|----------|-------|-----------|-------------------|
-| 1. Introduction au DevOps | 3h | J1 matin | TP0 — analyse d'un workflow, cartographie d'un pipeline |
-| 2. Git avancé et travail collaboratif | 5h | J1 après-midi + J2 début | TP1 — branche feature, PR, revue de code, fusion |
-| 3. Docker | 8h | J2 + J3 matin | Étapes 1 et 2 — front, API, PostgreSQL, Docker Compose |
-| 4. CI/CD avec GitHub Actions | 6h | J3 après-midi + J4 | Étapes 3 et 4b — build, vérification, déploiement automatique |
-| 5. Déploiement d'une application | 4h | J4 matin | Étape 4a — application dockerisée sur un serveur Linux |
-| 6. Supervision et bonnes pratiques | 2h | J4 fin | Étape 5 — analyse d'un incident de déploiement |
+| Module | Durée | Placement | Mise en pratique |
+|--------|-------|-----------|------------------|
+| Introduction à la culture DevOps | 3h | J1 matin | Étude de cas, value stream mapping, pipeline cible |
+| Gestion de versions et collaboration | 4h30 | J1 après-midi + J2 matin | TP1 collaboratif, rebase interactif, ruleset |
+| Intégration continue | 6h | J2 | Étape 1 : `ci.yml`, Jenkinsfile, `.gitlab-ci.yml` |
+| Déploiement continu | 6h | J3 | Étape 2 : staging auto, production avec approbation, rollback |
+| Infrastructure as Code | 4h30 | J4 matin + début d'après-midi | Exercices OpenTofu / Ansible, étape 3 |
+| Surveillance et retour d'information | 3h | J4 après-midi (+ smoke tests au J3) | Étape 4 : métriques, alerte, post-mortem → issue |
+| DevSecOps | 4h30 | J3 (1h) + J5 (3h30) | Secret dans l'historique, Trivy, Juice Shop, étape 5 |
 
 ---
 
 ## Évaluation
 
-**Formative** : exercices guidés, quiz de fin de journée, QCM, validation des étapes du fil rouge, revues de code entre pairs.
-
-**Certificative (mise en situation)** — vous devez :
-- créer un Dockerfile fonctionnel ;
-- créer un fichier Docker Compose ;
-- configurer un dépôt GitHub ;
-- mettre en place un workflow GitHub Actions ;
-- déployer automatiquement une application ;
-- présenter votre pipeline DevOps et justifier vos choix techniques.
-
-Détails : [Consigne](./evaluation/mise-en-situation.md) · [Grille (100 points)](./evaluation/grille-evaluation.md) · [QCM](./evaluation/qcm.md)
+- **Formative** : exercices du matin, quiz de fin de journée, validation des étapes du fil rouge, revues de PR entre pairs.
+- **QCM** : 20 questions en fin de séance du jour 5 → [qcm.md](./evaluation/qcm.md)
+- **État final du dépôt TaskFlow** (100 points) → [grille](./evaluation/grille-evaluation.md) : collaboration Git (15), CI (20), CD (20), IaC (15), monitoring (15), DevSecOps (15).
 
 ### Livrables attendus
 
-- un dépôt Git structuré ;
-- une application conteneurisée ;
-- un Dockerfile et un `compose.yaml` opérationnels ;
-- un pipeline CI/CD automatisé avec GitHub Actions ;
-- une application déployée sur un serveur de test ;
-- une documentation technique décrivant l'architecture et la procédure de déploiement.
+- le dépôt `taskflow` : historique propre, PR revues, release taguée ;
+- les workflows `ci.yml`, `release.yml`, `iac.yml` et `security.yml` au vert ;
+- la stack `taskflow-prod` déployée en HTTPS, et la stack de monitoring ;
+- `docs/ARCHITECTURE.md`, `DEPLOIEMENT.md`, `INCIDENTS.md` et `SECURITE.md`.
 
 ---
 
@@ -167,12 +161,12 @@ Détails : [Consigne](./evaluation/mise-en-situation.md) · [Grille (100 points)
 ```
 ├── slides/          # Slides Marp, un fichier par jour
 ├── demos/           # Démos jouées en direct par le formateur
-├── exercices/       # Exercices guidés courts, par jour (+ solutions)
+├── exercices/       # Exercices du matin, par jour (+ solutions)
 ├── tp/
 │   ├── tp0-cartographie-pipeline/
 │   ├── tp1-git-collaboratif/
 │   └── fil-rouge-taskflow/   # Énoncés étape par étape + starter/ + solution/
-├── evaluation/      # QCM, grille, consigne de mise en situation
+├── evaluation/      # QCM, grille d'évaluation
 └── ressources/      # Installation du poste, cheatsheets, glossaire, lab (runner GitHub Actions)
 ```
 
@@ -181,27 +175,22 @@ Détails : [Consigne](./evaluation/mise-en-situation.md) · [Grille (100 points)
 ## Ressources
 
 ### Avant le jour 1
-- [Installer son poste](./ressources/setup-poste.md) — Git, VS Code, Docker, Node 20
+- [Installer son poste](./ressources/setup-poste.md) : Git, VS Code, Docker, Node 20, OpenTofu, Ansible, images à pré-télécharger
 
 ### Aide-mémoire
-- [Cheatsheet Git](./ressources/cheatsheet-git.md)
-- [Cheatsheet Docker & Compose](./ressources/cheatsheet-docker.md)
-- [Cheatsheet GitHub Actions](./ressources/cheatsheet-github-actions.md)
-- [Cheatsheet Linux, SSH & Nginx](./ressources/cheatsheet-linux-ssh-nginx.md)
+- [Git](./ressources/cheatsheet-git.md) · [Docker & Compose](./ressources/cheatsheet-docker.md) · [GitHub Actions](./ressources/cheatsheet-github-actions.md) · [Linux, SSH & Nginx](./ressources/cheatsheet-linux-ssh-nginx.md)
+- [OpenTofu & Ansible](./ressources/cheatsheet-opentofu-ansible.md) · [Prometheus](./ressources/cheatsheet-prometheus.md) · [DevSecOps & OWASP](./ressources/cheatsheet-devsecops.md)
 - [Glossaire](./ressources/glossaire.md)
 
 ### Documentation officielle
-- [Pro Git (en français)](https://git-scm.com/book/fr/v2)
-- [Docker — Get started](https://docs.docker.com/get-started/)
-- [Docker Compose](https://docs.docker.com/compose/)
-- [GitHub Actions (en français)](https://docs.github.com/fr/actions)
-- [Nginx — Beginner's Guide](https://nginx.org/en/docs/beginners_guide.html)
-- [Let's Encrypt — Comment ça marche](https://letsencrypt.org/fr/how-it-works/)
+- [Pro Git (en français)](https://git-scm.com/book/fr/v2) · [GitHub Actions](https://docs.github.com/fr/actions) · [Jenkins](https://www.jenkins.io/doc/book/pipeline/) · [GitLab CI](https://docs.gitlab.com/ee/ci/)
+- [OpenTofu](https://opentofu.org/docs/) · [Ansible](https://docs.ansible.com/) · [Prometheus](https://prometheus.io/docs/) · [Grafana](https://grafana.com/docs/)
+- [OWASP Top 10](https://owasp.org/Top10/fr/) · [OWASP ZAP](https://www.zaproxy.org/docs/) · [OWASP Juice Shop](https://owasp.org/www-project-juice-shop/)
 
 ### Pour aller plus loin
-- *The Phoenix Project*, Gene Kim, Kevin Behr, George Spafford
+- *The Phoenix Project* et *The DevOps Handbook*, Gene Kim et al.
 - *Accelerate*, Nicole Forsgren, Jez Humble, Gene Kim
-- [roadmap.sh/devops](https://roadmap.sh/devops)
+- [roadmap.sh/devops](https://roadmap.sh/devops) · [DORA](https://dora.dev/)
 
 ### Construire les slides en local
 
@@ -213,4 +202,4 @@ npm run build           # HTML dans dist/
 
 ---
 
-**2026 — Formation DevOps DWWM — ForEach Academy**
+**2026 — Formation DevOps CDA — ForEach Academy**

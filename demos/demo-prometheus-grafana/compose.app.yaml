@@ -1,0 +1,43 @@
+# Démo J4 — Bloc 6.1 : une mini-TaskFlow (db, api instrumentée, front), construite
+# depuis la SOLUTION du fil rouge. Son réseau est nommé « taskflow-demo » : la stack
+# de monitoring de la solution s'y raccorde (TASKFLOW_NETWORK=taskflow-demo).
+name: demo-taskflow-app
+
+services:
+  db:
+    image: docker.io/library/postgres:16-alpine
+    environment:
+      POSTGRES_USER: taskflow
+      POSTGRES_PASSWORD: demo
+      POSTGRES_DB: taskflow
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taskflow -d taskflow"]
+      interval: 3s
+      retries: 20
+
+  api:
+    build:
+      context: ../../tp/fil-rouge-taskflow/solution/api
+      args:
+        APP_VERSION: demo-1
+    image: localhost/demo-taskflow-api:demo
+    environment:
+      DATABASE_URL: postgres://taskflow:demo@db:5432/taskflow
+      APP_ENV: demo
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  front:
+    build:
+      context: ../../tp/fil-rouge-taskflow/solution/front
+    image: localhost/demo-taskflow-front:demo
+    ports:
+      - "${FRONT_PORT:-8092}:80"
+    depends_on: [api]
+    restart: unless-stopped
+
+networks:
+  default:
+    name: taskflow-demo

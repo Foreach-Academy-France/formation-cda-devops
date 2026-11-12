@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 245" font-family="Helvetica, Arial, sans-serif" font-size="14">
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1e3a8a"/></marker></defs>
+  <rect width="1000" height="245" fill="#ffffff"/>
+  <g>
+    <rect x="15" y="40" width="150" height="80" rx="10" fill="#fecaca" stroke="#dc2626" stroke-width="2"/>
+    <text x="90" y="70" text-anchor="middle" font-weight="bold" fill="#7f1d1d">1. Alerte</text>
+    <text x="90" y="92" text-anchor="middle" fill="#334155" font-size="13">TaskFlowApiDown</text>
+    <text x="90" y="110" text-anchor="middle" fill="#64748b" font-size="12">mail en &lt; 2 min</text>
+  </g>
+  <g>
+    <rect x="215" y="40" width="150" height="80" rx="10" fill="#fed7aa" stroke="#ea580c" stroke-width="2"/>
+    <text x="290" y="70" text-anchor="middle" font-weight="bold" fill="#7c2d12">2. Incident</text>
+    <text x="290" y="92" text-anchor="middle" fill="#334155" font-size="13">diagnostic : logs,</text>
+    <text x="290" y="110" text-anchor="middle" fill="#334155" font-size="13">métriques → réparer</text>
+  </g>
+  <g>
+    <rect x="402" y="40" width="196" height="80" rx="10" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+    <text x="500" y="70" text-anchor="middle" font-weight="bold" fill="#78350f">3. Post-mortem</text>
+    <text x="500" y="92" text-anchor="middle" fill="#334155" font-size="13">sans blâme : chronologie,</text>
+    <text x="500" y="110" text-anchor="middle" fill="#334155" font-size="13">5 pourquoi, actions</text>
+  </g>
+  <g>
+    <rect x="635" y="40" width="150" height="80" rx="10" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+    <text x="710" y="70" text-anchor="middle" font-weight="bold" fill="#1e3a8a">4. Issue</text>
+    <text x="710" y="92" text-anchor="middle" fill="#334155" font-size="13">action concrète,</text>
+    <text x="710" y="110" text-anchor="middle" fill="#334155" font-size="13">vérifiable, assignée</text>
+  </g>
+  <g>
+    <rect x="835" y="40" width="150" height="80" rx="10" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+    <text x="910" y="70" text-anchor="middle" font-weight="bold" fill="#14532d">5. Amélioration</text>
+    <text x="910" y="92" text-anchor="middle" fill="#334155" font-size="13">test, contrôle CI,</text>
+    <text x="910" y="110" text-anchor="middle" fill="#334155" font-size="13">nouvelle alerte</text>
+  </g>
+  <line x1="165" y1="80" x2="211" y2="80" stroke="#1e3a8a" stroke-width="2" marker-end="url(#a)"/>
+  <line x1="365" y1="80" x2="398" y2="80" stroke="#1e3a8a" stroke-width="2" marker-end="url(#a)"/>
+  <line x1="598" y1="80" x2="631" y2="80" stroke="#1e3a8a" stroke-width="2" marker-end="url(#a)"/>
+  <line x1="785" y1="80" x2="831" y2="80" stroke="#1e3a8a" stroke-width="2" marker-end="url(#a)"/>
+  <path d="M910,120 C910,200 90,200 90,124" fill="none" stroke="#16a34a" stroke-width="2" stroke-dasharray="7 5" marker-end="url(#a)"/>
+  <text x="500" y="232" text-anchor="middle" fill="#14532d">le même incident ne se reproduit pas sans être détecté plus tôt (MTTR ↓, taux d'échec des changements ↓)</text>
+</svg>

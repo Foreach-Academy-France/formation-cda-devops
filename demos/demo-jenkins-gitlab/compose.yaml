@@ -1,0 +1,35 @@
+# =============================================================================
+# Démo J2 — Bloc 3.3 : Jenkins LTS en local
+#   bash demo.sh                 (prépare le dépôt local, build, démarre, nettoie)
+#   ou à la main : docker compose up -d --build   puis http://localhost:8090
+# =============================================================================
+name: demo-jenkins
+
+services:
+  jenkins:
+    build: ./jenkins
+    image: demo-jenkins-cda:local
+    # Podman rootless : JENKINS_USER=root (root du conteneur = votre utilisateur)
+    user: "${JENKINS_USER:-jenkins}"
+    # Accès au socket Docker : le groupe propriétaire du socket sur le poste
+    group_add:
+      - "${DOCKER_GID:-0}"
+    environment:
+      # JENKINS_HOME au MÊME chemin que sur le poste (voir volumes) : quand un
+      # pipeline lance `docker run -v <workspace>:...`, c'est le daemon du POSTE
+      # qui lit ce chemin. Même astuce que le runner self-hosted du Jour 3.
+      JENKINS_HOME: ${JENKINS_HOME_DIR:?lancez demo.sh ou définissez JENKINS_HOME_DIR (chemin absolu)}
+      JENKINS_ADMIN_PASSWORD: ${JENKINS_ADMIN_PASSWORD:-admin}
+      JENKINS_PORT: ${JENKINS_PORT:-8090}
+      TASKFLOW_REPO_URL: ${TASKFLOW_REPO_URL:-file:///srv/taskflow.git}
+      TASKFLOW_BRANCH: ${TASKFLOW_BRANCH:-main}
+      PODMAN_COMPAT: ${PODMAN_COMPAT:-0}             # 1 avec Podman (demo.sh le détecte)
+    ports:
+      - "127.0.0.1:${JENKINS_PORT:-8090}:8080"   # localhost uniquement
+    volumes:
+      - ${JENKINS_HOME_DIR}:${JENKINS_HOME_DIR}
+      # Le client docker du conteneur pilote le daemon du POSTE (comme le runner du J3).
+      # Quiconque accède à ce socket est root sur le poste : démo locale seulement.
+      - ${DOCKER_SOCK:-/var/run/docker.sock}:/var/run/docker.sock
+      # Dépôt Git local préparé par demo.sh (mode hors ligne)
+      - ${TASKFLOW_BARE_REPO:-./.taskflow.git}:/srv/taskflow.git:ro

@@ -94,11 +94,11 @@ L'API écrit **une ligne JSON par requête** sur sa sortie standard (`method`, `
 
 ---
 
-## Version « solution » : Docker, CI/CD et déploiement
+## Version « solution » : tout ce qui est construit pendant la formation
 
-Cette version contient en plus tout ce qui est construit pendant la formation.
+Les Dockerfiles et `compose.yaml` sont fournis dès le starter. La solution ajoute la chaîne DevOps complète.
 
-### Tout lancer avec Docker Compose (une commande)
+### Tout lancer avec Docker Compose (développement)
 
 ```bash
 docker compose up -d --build
@@ -108,15 +108,18 @@ docker compose ps            # db, api et front doivent être "healthy"
 Application : <http://localhost:8080> · santé : <http://localhost:8080/health>.
 Arrêter : `docker compose down` (garde les données) ou `docker compose down -v` (efface aussi le volume).
 
-### Fichiers ajoutés
+### Fichiers ajoutés, jour par jour
 
-| Fichier / dossier | Rôle |
-| --- | --- |
-| `api/Dockerfile`, `front/Dockerfile`, `front/nginx.conf`, `*/.dockerignore` | Images Docker |
-| `compose.yaml` | Environnement de développement (db + api + front) |
-| `compose.prod.yaml`, `.env.example` | Version « prod » (images ghcr.io, `.env`, service `proxy` HTTPS seul exposé) |
-| `.github/workflows/ci.yml` | Lint, tests (avec Postgres) et build à chaque PR / push |
-| `.github/workflows/release.yml` | Publication des images sur ghcr.io puis déploiement + smoke test |
-| `.github/pull_request_template.md`, `.github/CODEOWNERS` | Collaboration |
-| `deploy/nginx/taskflow.conf`, `deploy/gen-cert.sh`, `deploy/deploy.sh`, `deploy/backup.sh` | Prod : reverse proxy HTTPS, certificat, déploiement, sauvegarde |
-| `docs/ARCHITECTURE.md`, `docs/DEPLOIEMENT.md`, `docs/INCIDENTS.md` | Documentation d'exploitation |
+| Jour | Fichier / dossier | Rôle |
+| --- | --- | --- |
+| J2 | `.github/workflows/ci.yml` | Lint, tests unitaires et d'intégration (service Postgres), build, matrix Node 20/22, couverture |
+| J2 | `ci-autres-outils/` | Le même pipeline en `Jenkinsfile` et `.gitlab-ci.yml` |
+| J3 | `.github/workflows/release.yml` | Build → scan Trivy → push ghcr.io → staging (auto) → production (approbation) ; rollback |
+| J3 | `compose.prod.yaml`, `compose.staging.yaml`, `.env.example`, `deploy/` | Environnements, proxy HTTPS, certificat, déploiement, smoke test, sauvegarde |
+| J3 | `.github/dependabot.yml`, `.pre-commit-config.yaml` | Mises à jour des dépendances, gitleaks avant chaque commit |
+| J4 | `infra/`, `.github/workflows/iac.yml` | Le staging en OpenTofu ; fmt, validate et plan sur les PR |
+| J4 | `ansible/` | Bonus : préparation du dossier de production |
+| J4 | `api/src/metrics.js`, `monitoring/` | `/metrics`, Prometheus, Grafana, Alertmanager, blackbox |
+| J5 | `.github/workflows/security.yml`, `.gitleaks.toml`, `.zap/` | gitleaks, npm audit, Semgrep, ZAP baseline |
+| J5 | `front/nginx.conf` (en-têtes), `api/src/app.js` (durcissement) | Corrections issues des rapports de sécurité |
+| — | `docs/` | ARCHITECTURE, DEPLOIEMENT, INCIDENTS, SECURITE |

@@ -32,3 +32,11 @@ ressources/lab/runner/.env
 ressources/lab/runner/work/
 tp/tp0-cartographie-pipeline/corrige-formateur.md
 tp/fil-rouge-taskflow/incident/solution-formateur.md
+
+# OpenTofu / Terraform : state et cache des providers jamais versionnés
+.terraform/
+*.tfstate
+*.tfstate.*
+
+# Corrigés formateur (dépôt public + GitHub Pages)
+exercices/*/solutions-formateur.md

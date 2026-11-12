@@ -1,232 +1,217 @@
-# QCM — Formation DWWM DevOps
+# QCM — Formation DevOps CDA
 
-**Nom :** ______________________ **Prénom :** ______________________ **Date :** ____ / ____ / ________
+**Nom :** ______________________ **Prénom :** ______________________ **Demi-groupe :** A ☐ B ☐
 
-**Durée** : 15 minutes · **Questions** : 20 · **Évaluation formative** (non bloquante)
+**Durée** : 15 minutes · **Questions** : 20 · **Barème** : 1 point par bonne réponse
 
-> Chaque question comporte **une seule bonne réponse** parmi les quatre propositions (A, B, C, D).
-> Reportez vos réponses dans la **grille en fin de document**. Aucune pénalité pour une mauvaise réponse.
-> Les exemples s'appuient sur le projet fil rouge **TaskFlow** (API Node 20 + Express + PostgreSQL 16, front Vite servi par nginx).
-
----
-
-## Séquence 1 — Introduction au DevOps
-
-**1.** Quelle est la différence entre **livraison continue** (*continuous delivery*) et **déploiement continu** (*continuous deployment*) ?
-
-- A. La livraison continue concerne le front, le déploiement continu concerne l'API.
-- B. En livraison continue, l'application est toujours prête à être mise en production mais un humain déclenche la mise en prod ; en déploiement continu, chaque changement validé part en production sans intervention humaine.
-- C. La livraison continue se fait par FTP, le déploiement continu par Git.
-- D. Il n'y a aucune différence, ce sont deux traductions du même terme.
+> Chaque question n'a **qu'une seule bonne réponse** parmi A, B, C et D.
+> Reportez vos réponses dans la **grille en fin de document**. Une mauvaise réponse ne fait pas perdre de point.
+> Les exemples s'appuient sur le projet fil rouge **TaskFlow** (API Node 20 + Express + PostgreSQL 16, front Vite servi par Nginx).
 
 ---
 
-**2.** Que signifie l'acronyme **CALMS**, souvent utilisé pour décrire la culture DevOps ?
+## Culture DevOps
 
-- A. Cloud, Agile, Linux, Monitoring, Sécurité
-- B. Code, Automatisation, Logs, Merge, Serveur
-- C. Culture, Automatisation, Lean, Mesure, Partage
-- D. Conteneurs, Actions, Load-balancing, Métriques, Sécurité
+**1.** Dans `release.yml`, le job `deploy-production` utilise l'environment GitHub `production`, qui exige l'approbation d'un relecteur. Comment qualifier ce pipeline ?
 
----
-
-**3.** Qu'est-ce que l'**intégration continue** (CI) ?
-
-- A. Intégrer souvent son travail dans la branche principale, avec une vérification automatique (lint, tests, build) à chaque push ou PR.
-- B. Déployer l'application en production toutes les nuits.
-- C. Travailler sur une branche personnelle pendant plusieurs semaines avant de la fusionner.
-- D. Installer automatiquement les mises à jour du système d'exploitation du serveur.
+- A. De l'intégration continue : la production n'est pas concernée.
+- B. Du déploiement continu : tout est automatisé dans GitHub Actions.
+- C. De la livraison continue : l'application est toujours prête à partir, mais un humain décide de la mise en production.
+- D. Du déploiement manuel : il faut lancer les commandes sur le serveur.
 
 ---
 
-## Séquence 2 — Git avancé et travail collaboratif
+**2.** Pour une fonctionnalité de La Fromagerie, on mesure **10 jours** entre l'idée et la mise en ligne (*lead time*), dont **1 jour** de travail effectif (*process time*). Quelle est l'efficacité du flux ?
 
-**4.** Que fait la commande `git switch -c feature/health` ?
-
-- A. Elle supprime la branche `feature/health`.
-- B. Elle fusionne la branche `feature/health` dans la branche courante.
-- C. Elle envoie la branche `feature/health` sur GitHub.
-- D. Elle crée la branche `feature/health` et se place dessus.
+- A. 10 % : le reste du temps, le travail attend.
+- B. 90 % : seul 1 jour a été perdu.
+- C. 1 % : un jour sur cent.
+- D. Impossible à calculer sans connaître la taille de l'équipe.
 
 ---
 
-**5.** Lors d'un conflit, vous lisez ceci dans `index.html` :
+**3.** Laquelle de ces mesures **ne fait pas partie** des quatre métriques DORA ?
 
-```
-<<<<<<< HEAD
-<li>Alice</li>
-=======
-<li>Bruno</li>
->>>>>>> feature/carte-bruno
-```
-
-Que représente la ligne `<li>Alice</li>` ?
-
-- A. La version de la branche que vous êtes en train de fusionner (`feature/carte-bruno`).
-- B. La version d'origine, avant les deux modifications.
-- C. La version de la branche sur laquelle vous êtes placé (HEAD), avant la fusion.
-- D. Une ligne ajoutée automatiquement par Git pour résoudre le conflit.
+- A. La fréquence de déploiement.
+- B. Le délai entre un commit et sa mise en production (*lead time for changes*).
+- C. Le temps de restauration après un incident.
+- D. Le nombre de lignes de code écrites par développeur et par semaine.
 
 ---
 
-**6.** Quelle est la « règle d'or » du `git rebase` ?
+## Gestion de versions et collaboration
 
-- A. Ne jamais rebaser une branche déjà partagée (poussée et utilisée par d'autres personnes).
-- B. Toujours rebaser `main` sur sa branche de fonctionnalité.
-- C. Ne rebaser qu'après avoir créé un tag.
-- D. Rebaser uniquement avec l'option `--force`.
+**4.** Quelle est la « règle d'or » du `git rebase` ?
 
----
-
-**7.** TaskFlow est en version `v1.4.2` (SemVer). Vous corrigez un bug sans changer l'API ni ajouter de fonctionnalité. Quelle est la nouvelle version ?
-
-- A. `v2.0.0`
-- B. `v1.4.3`
-- C. `v1.5.0`
-- D. `v1.4.2-fix`
+- A. Toujours rebaser `main` sur sa branche de fonctionnalité.
+- B. Ne jamais rebaser une branche déjà poussée et utilisée par d'autres personnes.
+- C. Ne jamais rebaser une branche qui contient plus de trois commits.
+- D. Toujours faire `git push --force` sur `main` après un rebase.
 
 ---
 
-## Séquence 3 — Docker
+**5.** Le ruleset de `main` n'autorise que la fusion en **squash**. Quel avantage en tire-t-on ?
 
-**8.** Quelle phrase décrit correctement la relation entre une **image** et un **conteneur** Docker ?
-
-- A. Une image est un conteneur arrêté.
-- B. Un conteneur est un fichier `.zip` qui contient une image.
-- C. Une image est une machine virtuelle complète avec son propre noyau.
-- D. Une image est un modèle en lecture seule ; un conteneur est une instance de cette image en cours d'exécution (comme un objet créé à partir d'une classe).
+- A. Les conflits deviennent impossibles.
+- B. Chaque PR devient un seul commit sur `main`, dont le message est le titre de la PR (au format Conventional Commits) : l'historique reste lisible et chaque changement se revert d'un coup.
+- C. La CI n'a plus besoin de tourner sur les PR.
+- D. Les revues de code deviennent facultatives.
 
 ---
 
-**9.** Dans `api/Dockerfile`, pourquoi écrit-on `COPY package*.json ./` puis `RUN npm ci --omit=dev` **avant** `COPY . .` ?
+**6.** Deux PR fusionnées l'une après l'autre ne provoquent **aucun conflit Git**, mais `main` ne compile plus : l'une renomme une fonction que l'autre utilise. Comment appelle-t-on ce problème, et qu'est-ce qui le détecte ?
 
-- A. Pour profiter du cache : tant que `package.json` / `package-lock.json` ne changent pas, Docker réutilise la couche `npm ci` et le build est beaucoup plus rapide.
-- B. Parce que Docker refuse de copier plus de deux fichiers à la fois.
-- C. Pour que les fichiers `.env` soient inclus dans l'image.
-- D. Parce que `npm ci` doit toujours être la dernière instruction d'un Dockerfile.
-
----
-
-**10.** Que fait l'option `-p 8080:80` dans `docker run -p 8080:80 docker.io/library/nginx:1.27-alpine` ?
-
-- A. Elle limite le conteneur à 80 % du CPU et 8080 Mo de RAM.
-- B. Elle redirige le port 80 de l'hôte vers le port 8080 du conteneur.
-- C. Elle publie le port 80 du conteneur sur le port 8080 de votre machine (hôte).
-- D. Elle lance 80 conteneurs nginx sur le port 8080.
+- A. Un conflit textuel ; Git le détecte avec des marqueurs `<<<<<<<`.
+- B. Une dérive de configuration ; OpenTofu la détecte avec `plan`.
+- C. Une fuite de secret ; gitleaks la détecte.
+- D. Un conflit sémantique ; seule l'intégration continue (build + tests sur `main` et sur des PR à jour) le détecte.
 
 ---
 
-**11.** Vous lancez PostgreSQL avec `docker run -d --name db docker.io/library/postgres:16-alpine`, vous créez des tâches, puis vous faites `docker rm -f db` et relancez la même commande : vos tâches ont disparu. Pourquoi ?
+## Intégration continue
 
-- A. PostgreSQL 16 efface sa base à chaque démarrage.
-- B. Il fallait utiliser `docker stop` au lieu de `docker rm`.
-- C. L'image `postgres:16-alpine` est en lecture seule.
-- D. Aucun volume n'était monté sur `/var/lib/postgresql/data` : les données vivaient dans la couche du conteneur, supprimée avec lui.
+**7.** Dans `ci.yml`, le job `api-integration` doit exécuter les tests d'intégration contre une vraie base PostgreSQL. Quelle est la bonne solution ?
 
----
-
-**12.** Dans le `compose.yaml` de TaskFlow, le service `api` doit se connecter au service `db`. Quelle valeur de `DATABASE_URL` est correcte ?
-
-- A. `postgres://taskflow:taskflow@localhost:5432/taskflow`
-- B. `postgres://taskflow:taskflow@db:5432/taskflow`
-- C. `postgres://taskflow:taskflow@127.0.0.1:3000/taskflow`
-- D. `postgres://taskflow:taskflow@taskflow.localhost:8080/taskflow`
+- A. Déclarer un conteneur `postgres:16-alpine` dans la section `services:` du job, avec un healthcheck, et passer `DATABASE_URL` aux tests.
+- B. Installer PostgreSQL avec `apt-get` à chaque step.
+- C. Utiliser la base de production, accessible depuis GitHub.
+- D. Ce n'est pas possible : les tests d'intégration ne se lancent qu'en local.
 
 ---
 
-## Séquence 4 — CI/CD avec GitHub Actions
+**8.** Le job `api` utilise `strategy.matrix.node: [20, 22]`. Quels noms de checks faut-il exiger dans le ruleset de `main` ?
 
-**13.** Où doit se trouver un fichier de workflow GitHub Actions pour être pris en compte ?
-
-- A. Dans `.github/workflows/`, avec l'extension `.yml` ou `.yaml`.
-- B. À la racine du dépôt, sous le nom `Jenkinsfile`.
-- C. Dans `api/tests/`.
-- D. Dans les paramètres du dépôt (*Settings*), il n'y a pas de fichier.
+- A. `api`, une seule fois : la matrice est invisible pour GitHub.
+- B. `node`.
+- C. `api (20)` et `api (22)` : la matrice crée un check par combinaison.
+- D. Aucun : les jobs d'une matrice ne peuvent pas être requis.
 
 ---
 
-**14.** Dans un workflow, que signifie `needs: test` sur le job `build` ?
+**9.** Dans un `Jenkinsfile` déclaratif, quel élément correspond le mieux à `runs-on:` de GitHub Actions ?
 
-- A. Le job `build` s'exécute en parallèle du job `test`.
-- B. Le job `build` installe automatiquement les dépendances de test.
-- C. Le job `build` est ignoré si le job `test` existe.
-- D. Le job `build` attend que le job `test` se termine **avec succès** avant de démarrer.
-
----
-
-**15.** *(Théorie — vrai serveur)* Sur un vrai serveur distant, le job de déploiement se connecterait en SSH et aurait besoin d'une clé SSH privée. Quelle est la bonne pratique ?
-
-- A. L'écrire directement dans `release.yml`, le dépôt étant privé.
-- B. La mettre dans un fichier `deploy/id_ed25519` commité dans le dépôt.
-- C. L'enregistrer comme **secret** du dépôt (*Settings → Secrets and variables → Actions*), par exemple `SSH_PRIVATE_KEY`, et l'utiliser avec `${{ secrets.SSH_PRIVATE_KEY }}`.
-- D. La passer dans une variable `vars.SSH_PRIVATE_KEY`, visible dans les logs.
+- A. `post { always { … } }`
+- B. `agent`, qui désigne la machine (ou le conteneur) où le pipeline s'exécute.
+- C. `stage('Build')`
+- D. `environment { … }`
 
 ---
 
-**16.** Pourquoi le job `deploy` de TaskFlow utilise-t-il `runs-on: [self-hosted, lab]` plutôt que `ubuntu-latest` ?
+## Déploiement continu
 
-- A. Parce que les runners GitHub ne savent pas exécuter `docker compose`.
-- B. Parce que la « prod » (`taskflow-prod`) tourne sur votre poste, injoignable depuis les serveurs de GitHub ; le runner self-hosted, lui, tourne sur votre poste, va chercher les jobs chez GitHub et pilote le Docker local (socket monté) pour mettre à jour la stack.
-- C. Parce que `ubuntu-latest` est payant pour les dépôts publics.
-- D. Parce que les secrets ne sont disponibles que sur un runner self-hosted.
+**10.** Que signifie le principe « **build once, deploy many** » appliqué à TaskFlow ?
 
----
-
-## Séquence 5 — Déploiement d'une application
-
-**17.** Dans `compose.prod.yaml`, quel est le rôle du conteneur `proxy` (Nginx configuré en **reverse proxy**) ?
-
-- A. Être le seul service qui publie des ports (80/443), gérer le HTTPS (certificat TLS) et transmettre les requêtes au service `front` (`proxy_pass http://front:80`).
-- B. Compiler le front Vite à chaque requête.
-- C. Remplacer PostgreSQL pour stocker les tâches.
-- D. Envoyer les images Docker sur ghcr.io.
+- A. On construit une image par environnement pour l'adapter à chacun.
+- B. On ne déploie qu'une seule fois par semaine.
+- C. On construit les images une seule fois (tag = SHA court du commit) et on promeut **la même image** de staging vers la production ; seule la configuration (`.env`) change.
+- D. On reconstruit l'image en production pour être sûr qu'elle contienne les dernières dépendances.
 
 ---
 
-**18.** Que faire du fichier `.env` de la « prod » (mot de passe PostgreSQL, tag d'image…) ?
+**11.** Quelle stratégie de déploiement envoie d'abord **une petite partie du trafic** (par exemple 5 %) vers la nouvelle version, puis augmente si les métriques restent bonnes ?
 
-- A. Le commiter dans le dépôt pour que le CI puisse le lire.
-- B. Le copier dans l'image Docker de l'API avec `COPY .env .`.
-- C. Le publier dans le README pour que l'équipe le retrouve.
-- D. Le créer uniquement dans le dossier de déploiement (`~/taskflow-prod/.env`), protégé par `chmod 600`, jamais dans Git ; seul `.env.example` (sans valeurs sensibles) est versionné.
-
----
-
-## Séquence 6 — Supervision et bonnes pratiques
-
-**19.** Après un merge, `https://taskflow.localhost` affiche **502 Bad Gateway**. Quelle démarche de diagnostic est la plus méthodique ?
-
-- A. Redémarrer l'ordinateur, puis attendre de voir si le problème revient.
-- B. Partir du symptôme et suivre le chemin de la requête : logs du conteneur `proxy` (Nginx) → `docker compose ps` (état des conteneurs) → `docker compose logs api` → cause → correction.
-- C. Annuler tous les commits de la semaine avec `git reset --hard`.
-- D. Supprimer le volume PostgreSQL pour repartir de zéro.
+- A. Canary.
+- B. Recreate.
+- C. Blue/green.
+- D. Rollback.
 
 ---
 
-**20.** L'endpoint `GET /health` de l'API TaskFlow répond `503` avec `{"status":"ok","db":"down",...}`. Que pouvez-vous en conclure ?
+**12.** Pourquoi le smoke test sur `/health` se trouve-t-il **après** chaque job de déploiement, et pas seulement dans `ci.yml` ?
 
-- A. L'API est arrêtée.
-- B. Nginx est mal configuré.
-- C. Le processus de l'API tourne, mais il n'arrive pas à joindre la base de données PostgreSQL.
-- D. Tout fonctionne : 503 est un code de succès.
+- A. Parce que `ci.yml` ne sait pas exécuter `curl`.
+- B. Pour remplacer les tests unitaires, devenus inutiles.
+- C. Parce que GitHub l'impose pour utiliser un environment.
+- D. Parce qu'il vérifie l'application **déployée** : la configuration réelle de l'environnement (variables, base, réseau) peut casser une image qui passait tous les tests.
+
+---
+
+## Infrastructure as Code
+
+**13.** Pourquoi ne versionne-t-on **pas** `terraform.tfstate` dans Git ?
+
+- A. Parce qu'OpenTofu le recrée à l'identique à chaque `plan`.
+- B. Parce que Git refuse les fichiers JSON.
+- C. Parce qu'il ne contient rien d'utile.
+- D. Parce qu'il peut contenir des secrets en clair et que deux personnes qui l'éditent en même temps le corrompent : on utilise un backend distant avec verrou (ou, dans le TP, un fichier hors du dépôt).
+
+---
+
+**14.** Un collègue supprime à la main le conteneur `taskflow-staging-api` (`docker rm -f`). Que se passe-t-il au prochain `tofu plan` ?
+
+- A. Rien : OpenTofu ne regarde que le code.
+- B. Le plan détecte la **dérive** (la ressource du state n'existe plus) et propose de recréer le conteneur.
+- C. OpenTofu supprime tout le staging.
+- D. Le plan échoue définitivement : il faut supprimer le state.
+
+---
+
+**15.** On lance deux fois de suite le même playbook Ansible sur la même machine. Que doit afficher le **second** passage s'il est bien écrit ?
+
+- A. `failed=1`, car les dossiers existent déjà.
+- B. Le même nombre de `changed` que le premier passage.
+- C. `changed=0` : les modules sont **idempotents**, l'état voulu est déjà atteint.
+- D. Rien : Ansible refuse de relancer un playbook déjà exécuté.
+
+---
+
+## Surveillance et retour d'information
+
+**16.** Que mesure la méthode **RED**, utilisée pour le dashboard de l'API TaskFlow ?
+
+- A. *Rate*, *Errors*, *Duration* : le nombre de requêtes par seconde, la part d'erreurs et la latence.
+- B. *Restart*, *Exit*, *Deploy* : le cycle de vie des conteneurs.
+- C. *Read*, *Edit*, *Delete* : les opérations sur la base.
+- D. *Redis*, *Elasticsearch*, *Docker* : les composants de la stack.
+
+---
+
+**17.** L'alerte `TaskFlowApiDown` s'est déclenchée ; la cause était une variable mal nommée dans `.env`. Après la correction, quelle action **boucle la boucle de feedback** DevOps ?
+
+- A. Identifier la personne responsable pour qu'elle ne recommence pas.
+- B. Désactiver l'alerte, qui a fait trop de bruit.
+- C. Rédiger un post-mortem sans blâme et ouvrir une issue d'amélioration (par exemple un test ou une vérification au démarrage qui aurait détecté l'erreur avant la production).
+- D. Redémarrer Prometheus.
+
+---
+
+## DevSecOps
+
+**18.** Quelle est la différence entre **Semgrep** et **OWASP ZAP** dans `security.yml` ?
+
+- A. Aucune : les deux analysent les dépendances npm.
+- B. Semgrep fait du **SAST** (il lit le code source sans l'exécuter) ; ZAP fait du **DAST** (il attaque l'application en fonctionnement).
+- C. Semgrep cherche les secrets ; ZAP scanne les images Docker.
+- D. Semgrep fait du DAST, ZAP du SAST.
+
+---
+
+**19.** Un développeur a committé un jeton GitHub, puis l'a supprimé dans le commit suivant. Que faut-il faire **en premier** ?
+
+- A. Révoquer le jeton et en générer un nouveau (rotation) : il reste dans l'historique et a pu être copié ; la purge de l'historique vient ensuite.
+- B. Rien : le dernier commit ne le contient plus.
+- C. Faire un `git revert` du commit qui l'a ajouté.
+- D. Rendre le dépôt privé, ce qui suffit à régler le problème.
+
+---
+
+**20.** Sur Juice Shop, saisir `' OR 1=1--` comme e-mail permet de se connecter en administrateur. Quelle catégorie de l'OWASP Top 10 est concernée, et quelle est la correction ?
+
+- A. A07 Défauts d'identification ; imposer des mots de passe plus longs.
+- B. A05 Mauvaise configuration ; ajouter un en-tête CSP.
+- C. A06 Composants vulnérables ; lancer `npm audit fix`.
+- D. A03 Injection ; utiliser des requêtes paramétrées (`$1`) au lieu de concaténer l'entrée dans le SQL.
 
 ---
 
 ## Grille de réponses
 
-Cochez **une seule case** par question.
-
-| N° | A | B | C | D | | N° | A | B | C | D |
-|---|---|---|---|---|---|---|---|---|---|---|
-| 1 | ☐ | ☐ | ☐ | ☐ | | 11 | ☐ | ☐ | ☐ | ☐ |
-| 2 | ☐ | ☐ | ☐ | ☐ | | 12 | ☐ | ☐ | ☐ | ☐ |
-| 3 | ☐ | ☐ | ☐ | ☐ | | 13 | ☐ | ☐ | ☐ | ☐ |
-| 4 | ☐ | ☐ | ☐ | ☐ | | 14 | ☐ | ☐ | ☐ | ☐ |
-| 5 | ☐ | ☐ | ☐ | ☐ | | 15 | ☐ | ☐ | ☐ | ☐ |
-| 6 | ☐ | ☐ | ☐ | ☐ | | 16 | ☐ | ☐ | ☐ | ☐ |
-| 7 | ☐ | ☐ | ☐ | ☐ | | 17 | ☐ | ☐ | ☐ | ☐ |
-| 8 | ☐ | ☐ | ☐ | ☐ | | 18 | ☐ | ☐ | ☐ | ☐ |
-| 9 | ☐ | ☐ | ☐ | ☐ | | 19 | ☐ | ☐ | ☐ | ☐ |
-| 10 | ☐ | ☐ | ☐ | ☐ | | 20 | ☐ | ☐ | ☐ | ☐ |
+| Q | Réponse | Q | Réponse | Q | Réponse | Q | Réponse |
+|---|---|---|---|---|---|---|---|
+| 1 | | 6 | | 11 | | 16 | |
+| 2 | | 7 | | 12 | | 17 | |
+| 3 | | 8 | | 13 | | 18 | |
+| 4 | | 9 | | 14 | | 19 | |
+| 5 | | 10 | | 15 | | 20 | |
 
 **Score : ______ / 20**

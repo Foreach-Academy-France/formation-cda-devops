@@ -2,10 +2,10 @@
 
 | | |
 |---|---|
-| **Jour / bloc** | J3 après-midi — Bloc 4.1 « GitHub Actions : concepts » |
-| **Durée** | 20 min |
+| **Jour / bloc** | Jour 2 matin — Bloc 3.2 « GitHub Actions » |
+| **Durée** | 15 min (version courte : sauter les minutes 12-14) |
 | **Prérequis** | un compte GitHub, [GitHub CLI](https://cli.github.com/) authentifié (`gh auth login`) pour la variante automatique ; un vidéoprojecteur sur l'onglet *Actions* |
-| **Ce qu'on montre** | workflow / événement / job / step / runner / action ; syntaxe YAML (indentation, listes, clés) ; déclencheurs `push`, `pull_request`, `workflow_dispatch`, `schedule` (commenté) ; contextes `${{ github.* }}` ; `needs` ; sorties de step ; résumé du run ; un job qui échoue |
+| **Ce qu'on montre** | workflow / événement / job / step / runner / action ; déclencheurs `push`, `pull_request`, `workflow_dispatch`, `schedule` (commenté) ; `permissions`, `concurrency`, `timeout-minutes` ; contextes `${{ github.* }}` et passage d'une saisie par `env:` (anti-injection) ; `needs` + `outputs` ; `matrix` ; `$GITHUB_STEP_SUMMARY` ; un job qui échoue |
 
 ## Contenu du dossier
 
@@ -14,7 +14,7 @@
 | `hello.yml` | workflow commenté ligne à ligne, à copier dans `.github/workflows/` d'un dépôt de test |
 | `demo.sh` | prépare un dépôt jetable avec le workflow ; avec `DEMO_GH_REPO`, crée le dépôt privé sur GitHub, pousse et suit le run |
 
-`hello.yml` est validé avec [actionlint](https://github.com/rhysd/actionlint) (`nix run nixpkgs#actionlint -- hello.yml` ou `docker run --rm -v "$PWD:/repo" -w /repo docker.io/rhysd/actionlint:1.7.12 hello.yml`).
+`hello.yml` est validé avec [actionlint](https://github.com/rhysd/actionlint) : `docker run --rm -v "$PWD:/repo" -w /repo docker.io/rhysd/actionlint:1.7.12 hello.yml`.
 
 ## Préparer (avant la séance)
 
@@ -37,10 +37,10 @@ Après la séance : `gh repo delete hello-actions-demo --yes`.
 | 0-4 | « Un workflow est un fichier YAML dans `.github/workflows/`. GitHub le lit à chaque événement. » Rappel YAML : indentation = 2 espaces, **jamais** de tabulation ; `clé: valeur` ; `- ` = élément de liste ; `\|` = bloc multi-ligne. | `hello.yml` à l'écran, repérer `on`, `jobs`, `steps` | « Combien de jobs ? Combien de steps dans le premier ? » |
 | 4-7 | « `on:` = les événements. Ici : push sur `main`, toute PR, et un bouton manuel avec un paramètre. » | Bloc `on:` ; `schedule` commenté | « Si je pousse sur une branche `feature/x` sans PR, le workflow se lance-t-il ? » (non) |
 | 7-10 | « Le push a déclenché un **run**. Chaque job tourne sur un **runner** : une VM Ubuntu neuve, détruite après. » | Onglet *Actions* → le run → le job `hello` → déplier les steps | « Pourquoi faut-il `actions/checkout` pour voir nos fichiers ? » (la VM est vide au départ) |
-| 10-12 | « Les `${{ … }}` sont des **expressions** évaluées par GitHub avant l'exécution. » | Step « Qui m'a déclenché ? » | « D'où vient la valeur de `github.actor` ? » |
+| 10-12 | « Les `${{ … }}` sont des **expressions** remplacées par GitHub **avant** l'exécution. D'où la règle : une saisie (input, titre de PR, nom de branche) passe par `env:`, jamais directement dans `run:`. » | Steps « Afficher un message » et « Qui m'a déclenché ? » | « Que se passerait-il avec un titre de PR contenant `"; curl … \| sh; "` ? » |
 | 12-14 | « `uses:` = une **action** (code réutilisable) ; `run:` = une commande shell. » | Step checkout ; step `ls -la` | « Où trouver d'autres actions ? » (Marketplace) |
-| 14-16 | « `needs: hello` : le job `tests` attend. Sans `needs`, les jobs tournent **en parallèle**. » | Le graphe des jobs en haut du run ; le résumé (`GITHUB_STEP_SUMMARY`) | « Pour TaskFlow, quels jobs pourraient tourner en parallèle ? » (lint et tests ; front et api) |
-| 16-18 | « Déclenchement manuel : bouton *Run workflow* avec le paramètre. » | `gh workflow run hello.yml -f prenom=Alice` ou le bouton | « À quoi cela servira-t-il au J4 ? » (rollback : redéployer un tag) |
+| 14-16 | « `needs: hello` : le job `tests` attend et reçoit la version par `outputs`. La `matrix` le lance deux fois : `Faux tests (20)` et `(22)` — ce sont les noms des checks. » | Le graphe des jobs ; le résumé (`GITHUB_STEP_SUMMARY`) | « Pour TaskFlow, quels jobs pourraient tourner en parallèle ? » (api, api-integration, front) |
+| 16-18 | « Déclenchement manuel : bouton *Run workflow* avec le paramètre. » | `gh workflow run hello.yml -f prenom=Alice` ou le bouton | « À quoi cela servira-t-il demain ? » (rollback : redéployer une image déjà construite) |
 | 18-20 | « Un step qui renvoie un code ≠ 0 fait **échouer** le job (croix rouge) et les jobs qui en dépendent. » | Décommenter `exit 1`, commit dans une PR → check rouge sur la PR | « Que voit le relecteur de la PR ? Doit-il fusionner ? » (transition vers les checks requis) |
 
 ## Pièges à anticiper

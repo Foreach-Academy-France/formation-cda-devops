@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # ============================================================================
-# declencher-incident.sh : provoque l'incident de l'étape 5 sur la stack
+# declencher-incident.sh : provoque l'incident de l'étape 4 (partie D) sur la stack
 # « taskflow-prod » (dossier de déploiement $DEPLOY_DIR, ~/taskflow-prod par défaut).
+# Avec la stack de monitoring de l'étape 4, l'alerte TaskFlowApiDown doit arriver
+# dans Mailpit (http://localhost:8025) environ 1 min 30 après le lancement.
 #
-# Apprenant : lancez-le SANS le lire (sinon, plus de suspense) :
+# Binôme ou formateur : lancez-le SANS que l'apprenant le lise (sinon, plus de suspense) :
 #     bash declencher-incident.sh
 #
 # Formateur : l'opération est réversible.
@@ -16,7 +18,7 @@
 # ============================================================================
 set -euo pipefail
 
-DEPLOY_DIR="${DEPLOY_DIR:-$HOME/taskflow-prod}"
+DEPLOY_DIR="${DEPLOY_DIR:-${PROD_DIR:-$HOME/taskflow-prod}}"
 COMPOSE_FILE="compose.prod.yaml"
 ENV_FILE="$DEPLOY_DIR/.env"
 BACKUP_FILE="$DEPLOY_DIR/.env.bak"
@@ -49,7 +51,7 @@ trigger() {
     die "l'incident est déjà déclenché (pour revenir en arrière : bash $0 --restaurer)"
   fi
   grep -q '^DATABASE_URL=' "$ENV_FILE" \
-    || die "$ENV_FILE ne contient pas la variable attendue : la partie A de l'étape 4 est-elle terminée ?"
+    || die "$ENV_FILE ne contient pas la variable attendue : la production de l'étape 2 est-elle en place ?"
 
   # Copie d'origine, avec les mêmes droits (chmod 600)
   cp -p "$ENV_FILE" "$BACKUP_FILE"
@@ -58,8 +60,9 @@ trigger() {
 
   recreate_api
   echo
-  echo "==> Un « déploiement » vient d'avoir lieu. Attendez 30 secondes, puis ouvrez"
-  echo "    https://taskflow.localhost (ou votre port HTTPS) et suivez l'énoncé de l'étape 5."
+  echo "==> Un « déploiement » vient d'avoir lieu. Ne touchez à rien : la supervision doit"
+  echo "    vous prévenir (Mailpit http://localhost:8025, Alertmanager http://localhost:9093)."
+  echo "    Puis suivez la partie D de l'étape 4."
 }
 
 restore() {
@@ -74,7 +77,7 @@ restore() {
 
 [ -f "$DEPLOY_DIR/$COMPOSE_FILE" ] \
   || die "$DEPLOY_DIR/$COMPOSE_FILE introuvable. Précisez le dossier : DEPLOY_DIR=/chemin/absolu bash $0"
-[ -f "$ENV_FILE" ] || die "$ENV_FILE introuvable : la partie A de l'étape 4 est-elle terminée ?"
+[ -f "$ENV_FILE" ] || die "$ENV_FILE introuvable : la production de l'étape 2 est-elle en place ?"
 command -v docker >/dev/null 2>&1 || die "la commande docker est introuvable"
 
 case "${1:-}" in

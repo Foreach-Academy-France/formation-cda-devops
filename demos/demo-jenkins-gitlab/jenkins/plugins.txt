@@ -1,0 +1,7 @@
+# Plugins de la démo (jenkins-plugin-cli résout les dépendances)
+configuration-as-code
+job-dsl
+workflow-aggregator
+git
+docker-workflow
+pipeline-graph-view

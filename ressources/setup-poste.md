@@ -1,6 +1,6 @@
 # Préparer son poste (à faire AVANT la formation)
 
-Durée : 45 à 60 minutes (le téléchargement de Docker est le plus long).
+Durée : 1 heure environ (le téléchargement de Docker et des images est le plus long).
 À la fin, vous lancez la section « Vérifier que tout marche » : si tout est conforme, vous êtes prêt.
 
 > Vous êtes bloqué ? Notez le message d'erreur **exact** (copier-coller ou capture) et prévenez le formateur avant le jour 1.
@@ -13,6 +13,8 @@ Durée : 45 à 60 minutes (le téléchargement de Docker est le plus long).
 | VS Code + extensions | éditer Dockerfile, YAML, workflows |
 | Docker (Desktop ou Engine) + Compose v2 | lancer l'application dans des conteneurs |
 | Node.js 20 | lancer les tests/lint de TaskFlow sur le poste |
+| OpenTofu (`tofu`) | Infrastructure as Code (jour 4) |
+| Ansible + `jq` | configuration automatisée, analyse de logs JSON (jour 4) |
 | `gh` (facultatif) | GitHub en ligne de commande |
 
 ---
@@ -110,7 +112,36 @@ Alternative : **fnm** (`curl -fsSL https://fnm.vercel.app/install | bash`, puis 
 
 ---
 
-## 6. GitHub CLI `gh` (facultatif)
+## 6. OpenTofu, Ansible et jq
+
+OpenTofu est la version libre de Terraform (mêmes fichiers `.tf`, commande `tofu`).
+
+```bash
+# Ubuntu / WSL / Debian
+curl -fsSL https://get.opentofu.org/install-opentofu.sh -o install-opentofu.sh
+chmod +x install-opentofu.sh && ./install-opentofu.sh --install-method deb && rm install-opentofu.sh
+sudo apt install -y pipx jq && pipx install --include-deps ansible && pipx ensurepath
+# macOS
+brew install opentofu ansible jq
+```
+
+Fermez et rouvrez le terminal, puis : `tofu version` et `ansible --version`.
+
+---
+
+## 7. Images à télécharger à l'avance (Wi-Fi de la salle)
+
+```bash
+for img in postgres:16-alpine node:20-alpine nginx:1.27-alpine \
+           prom/prometheus prom/alertmanager prom/blackbox-exporter grafana/grafana \
+           bkimminich/juice-shop ghcr.io/zaproxy/zaproxy:stable aquasec/trivy zricethezav/gitleaks; do
+  docker pull "$img"
+done
+```
+
+---
+
+## 8. GitHub CLI `gh` (facultatif)
 
 - macOS : `brew install gh` — Ubuntu/WSL : voir https://github.com/cli/cli/blob/trunk/docs/install_linux.md
 - Puis `gh auth login` (GitHub.com > SSH > suivre l'assistant). Test : `gh auth status`.
@@ -133,9 +164,23 @@ Copiez ces commandes dans le terminal (Ubuntu/WSL sous Windows).
 | `docker run --rm -p 8080:80 -d --name test-nginx nginx:1.27-alpine` puis `curl -s localhost:8080 \| head -n 4` | début de la page `Welcome to nginx!` |
 | `docker rm -f test-nginx` | `test-nginx` |
 | `code --version` | un numéro de version |
+| `tofu version` | `OpenTofu v1.x.x` |
+| `ansible --version` | `ansible [core 2.x.x]` |
+| `jq --version` | `jq-1.x` |
 | `gh --version` (facultatif) | `gh version 2.x.x` |
 
-**Ports 80 et 443** : en jour 4, le « serveur » (proxy Nginx) publie les ports 80 (HTTP) et 443 (HTTPS). Ils doivent être libres :
+**Ports utilisés pendant la semaine** :
+
+| Port | Service |
+|---|---|
+| 3000 | API TaskFlow en développement |
+| 3001 · 9090 · 9093 | Grafana · Prometheus · Alertmanager (jour 4) |
+| 3002 | OWASP Juice Shop (jour 5) |
+| 8080 | front TaskFlow en développement (`compose.yaml`) |
+| 8081 | environnement **staging** (jour 3) |
+| 80 et 443 (ou 8082 et 8443) | « production » derrière le proxy Nginx (jour 3) |
+
+Les ports 80 et 443 doivent être libres :
 ```bash
 ss -ltn | grep -E ':(80|443)\b'        # Linux / WSL : aucune ligne = libres
 lsof -iTCP:80 -sTCP:LISTEN             # macOS
@@ -158,8 +203,8 @@ Sous Windows avec le navigateur Windows et le serveur dans WSL2 : `localhost` es
 | `Cannot connect to the Docker daemon` | Docker pas lancé | Lancer Docker Desktop (attendre « running ») ; Linux : `sudo systemctl start docker` |
 | `permission denied ... /var/run/docker.sock` (Linux) | Pas dans le groupe `docker` | `sudo usermod -aG docker $USER` puis `newgrp docker` ou reconnexion ; vérifier avec `id` |
 | `docker: command not found` dans WSL | Intégration WSL non activée | Docker Desktop > Settings > Resources > WSL integration > cocher Ubuntu, Apply |
-| `Bind for 0.0.0.0:80 failed: port is already allocated` / `address already in use` | Un autre programme (Apache, Nginx, IIS, Skype, autre conteneur) utilise le port | Trouver : `ss -ltnp \| grep :80`. Soit l'arrêter, soit **changer les ports** de la prod locale : dans `~/taskflow-prod/.env`, `HTTP_PORT=8081` et `HTTPS_PORT=8443`, puis `docker compose up -d` ; l'URL devient `https://taskflow.localhost:8443` |
-| Port 80 refusé sans autre programme (Linux rootless / Podman) | Ports < 1024 réservés | Utiliser `HTTP_PORT=8081` / `HTTPS_PORT=8443` (pas 8080 : déjà pris par le front de développement) |
+| `Bind for 0.0.0.0:80 failed: port is already allocated` / `address already in use` | Un autre programme (Apache, Nginx, IIS, Skype, autre conteneur) utilise le port | Trouver : `ss -ltnp \| grep :80`. Soit l'arrêter, soit **changer les ports** de la prod locale : dans `~/taskflow-prod/.env`, `HTTP_PORT=8082` et `HTTPS_PORT=8443`, puis `docker compose up -d` ; l'URL devient `https://taskflow.localhost:8443` |
+| Port 80 refusé sans autre programme (Linux rootless / Podman) | Ports < 1024 réservés | Utiliser `HTTP_PORT=8082` / `HTTPS_PORT=8443` (8080 et 8081 sont pris par le front de développement et le staging) |
 | Dossiers montés vides, très lents (Windows) | Projet sous `/mnt/c` | Cloner dans `/home/<vous>/...` côté WSL |
 | `git push` demande un mot de passe | Dépôt cloné en HTTPS | `git remote set-url origin git@github.com:<pseudo>/<repo>.git` |
 | `Permission denied (publickey)` | Clé non ajoutée sur GitHub / pas chargée | Rejouer la section 2 ; `ssh -vT git@github.com` pour voir les clés essayées |

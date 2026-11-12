@@ -49,7 +49,7 @@ Application volontairement simple (le cœur du travail est le DevOps, pas le cod
 ```
 ├── .github/
 │   ├── workflows/ci.yml          # J2 : lint, tests (unitaires + intégration avec service postgres), build, matrix Node 20/22, cache, concurrency, couverture, artefact
-│   ├── workflows/release.yml     # J3 : build & push ghcr.io → scan Trivy (bloquant sur CRITICAL) → deploy staging (auto) → deploy production (approbation) → smoke test ; rollback par workflow_dispatch
+│   ├── workflows/release.yml     # J3 : build → scan Trivy (bloquant sur CRITICAL) → push ghcr.io → deploy staging (auto) → deploy production (approbation) → smoke test ; rollback par workflow_dispatch
 │   ├── workflows/iac.yml         # J4 : tofu fmt -check / validate / plan sur les PR qui touchent infra/
 │   ├── workflows/security.yml    # J5 : gitleaks, npm audit, Semgrep (SAST), ZAP baseline (DAST) sur la stack lancée dans le job ; PR + hebdomadaire
 │   ├── dependabot.yml            # J3 : npm (api, front), docker, github-actions
@@ -150,7 +150,7 @@ Horaires types : **9h00-12h30** / **13h30-17h00** (pauses incluses). Jour 5 : de
 
 → `tp/fil-rouge-taskflow/etape2-cd.md`
 - **Partie A — Déploiement manuel (1h)** : créer `~/taskflow-prod/`, `.env` (chmod 600), certificat auto-signé, `docker compose -f compose.prod.yaml up -d` → `https://taskflow.localhost` ; comprendre chaque geste avant de l'automatiser.
-- **Partie B — Pipeline de release (1h30)** : `release.yml` : build & push ghcr.io (tags SHA + `latest`) → **Trivy** (échoue sur CRITICAL) → job `deploy-staging` (runner self-hosted, environment `staging`) → smoke test `/health` → job `deploy-production` (environment `production` avec approbation = **livraison continue** ; sans approbation = **déploiement continu**).
+- **Partie B — Pipeline de release (1h30)** : `release.yml` : build → **Trivy** (échoue sur CRITICAL : on ne publie que ce qui a été scanné) → push ghcr.io (tags SHA + `latest`) → job `deploy-staging` (runner self-hosted, environment `staging`) → smoke test `/health` → job `deploy-production` (environment `production` avec approbation = **livraison continue** ; sans approbation = **déploiement continu**).
 - **Partie C — Rollback et Dependabot (45 min)** : `workflow_dispatch` avec input `tag` ; casser volontairement une release (smoke test rouge) et revenir en arrière ; `dependabot.yml`.
 - **Débrief (15 min)** : quel temps entre merge et prod ? (lien avec DORA)
 

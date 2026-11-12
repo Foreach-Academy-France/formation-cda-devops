@@ -1,0 +1,50 @@
+# Corrigé de l'exercice 2.5 : ci-catalogue.yml traduit en GitLab CI
+stages: [verify, build]
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  auto_cancel:
+    on_new_commit: interruptible        # ≈ concurrency.cancel-in-progress
+
+default:
+  image: node:22-alpine                 # ≈ setup-node node-version: 22
+  interruptible: true
+  cache:                                # ≈ setup-node cache: npm
+    key:
+      files: [package-lock.json]
+    paths: [.npm/]
+  before_script:
+    - npm ci --cache .npm --prefer-offline
+
+lint:
+  stage: verify
+  timeout: 5m
+  script:
+    - npm run lint
+
+test:
+  stage: verify
+  timeout: 10m
+  image: node:${NODE_VERSION}-alpine
+  parallel:
+    matrix:
+      - NODE_VERSION: ["20", "22"]     # ≈ strategy.matrix
+  services:
+    - name: redis:7-alpine
+      alias: redis
+  variables:
+    REDIS_URL: redis://redis:6379       # alias du service, pas localhost
+  script:
+    - npm test
+
+build:
+  stage: build                          # ≈ needs: [lint, test] (stage suivant)
+  timeout: 5m
+  script:
+    - npm run build
+  artifacts:
+    name: catalogue-dist
+    paths: [dist/]
+    expire_in: 7 days

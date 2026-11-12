@@ -1,0 +1,18 @@
+# Mail reçu dans Mailpit (http://localhost:8025) à 14:04:36 UTC, envoyé par Alertmanager.
+# Sujet : [FIRING:1] TaskFlowApiDown prod (http://front/health blackbox-health critical)
+
+1 alert for alertname=TaskFlowApiDown env=prod
+
+View in Alertmanager ( http://localhost:9093/#/alerts?receiver=equipe-mail ) *[1] Firing* *Labels*
+alertname = TaskFlowApiDown
+env = prod
+instance = http://front/health
+job = blackbox-health
+severity = critical
+*Annotations*
+description = La sonde sur http://front/health échoue depuis plus d'une minute (code HTTP, corps ou délai).
+runbook_url = docs/INCIDENTS.md#méthode-de-diagnostic
+summary = TaskFlow prod : /health ne répond plus
+Source ( http://localhost:9090/graph?g0.expr=probe_success%7Bjob%3D%22blackbox-health%22%7D+%3D%3D+0&g0.tab=1 )
+
+Sent by Alertmanager ( http://localhost:9093 )

@@ -1,0 +1,107 @@
+# =============================================================================
+# prepare-prod.yml : prépare le dossier de la « production » (Jour 4, bonus).
+# Remplace les gestes manuels de la partie A de l'étape 2 (Jour 3) par un
+# playbook rejouable et idempotent.
+#
+#   cd ansible
+#   ansible-playbook -i inventory.ini prepare-prod.yml -e ghcr_owner=<vous-en-minuscules>
+#   ansible-playbook -i inventory.ini prepare-prod.yml -e ghcr_owner=<vous> --check --diff   # simulation
+#
+# Variables utiles (-e) : prod_dir (~/taskflow-prod), ghcr_owner, http_port, https_port.
+# Le mot de passe PostgreSQL est généré au premier passage et gardé HORS du dépôt
+# (~/.config/taskflow/postgres-password, 0600) ; les passages suivants le relisent.
+# =============================================================================
+- name: Préparer le dossier de la production TaskFlow
+  hosts: prod
+  gather_facts: true # ansible_env.HOME
+  vars:
+    prod_dir: "{{ ansible_env.HOME }}/taskflow-prod"
+    repo_dir: "{{ playbook_dir }}/.." # racine du dépôt (compose.prod.yaml, deploy/)
+    ghcr_owner: "{{ undef(hint='Passez -e ghcr_owner=<votre compte GitHub en minuscules>') }}"
+    image_tag: latest
+    http_port: 80
+    https_port: 443
+    password_file: "{{ ansible_env.HOME }}/.config/taskflow/postgres-password"
+    postgres_password: "{{ lookup('ansible.builtin.password', password_file, chars=['ascii_letters', 'digits'], length=32) }}"
+
+  pre_tasks:
+    - name: Vérifier les variables
+      ansible.builtin.assert:
+        that:
+          - ghcr_owner is match('^[a-z0-9][a-z0-9-]*$')
+          - http_port | int > 0 and https_port | int > 0
+        fail_msg: "ghcr_owner doit être en minuscules (ghcr.io refuse les majuscules)"
+        quiet: true
+
+  tasks:
+    - name: Créer le dossier du mot de passe (hors dépôt)
+      ansible.builtin.file:
+        path: "{{ password_file | dirname }}"
+        state: directory
+        mode: "0700"
+
+    - name: Créer le dossier de déploiement et ses sous-dossiers
+      ansible.builtin.file:
+        path: "{{ prod_dir }}/{{ item.path }}"
+        state: directory
+        mode: "{{ item.mode }}"
+      loop:
+        - { path: "", mode: "0750" }
+        - { path: nginx, mode: "0750" }
+        - { path: certs, mode: "0700" } # clé privée TLS
+        - { path: backups, mode: "0700" } # dumps de la base
+
+    - name: Copier compose.prod.yaml
+      ansible.builtin.copy:
+        src: "{{ repo_dir }}/compose.prod.yaml"
+        dest: "{{ prod_dir }}/compose.prod.yaml"
+        mode: "0640"
+
+    - name: Copier les scripts de déploiement
+      ansible.builtin.copy:
+        src: "{{ repo_dir }}/deploy/{{ item }}"
+        dest: "{{ prod_dir }}/{{ item }}"
+        mode: "0750"
+      loop: [deploy.sh, smoke-test.sh, backup.sh, gen-cert.sh]
+
+    - name: Copier la configuration du proxy Nginx
+      ansible.builtin.copy:
+        src: "{{ repo_dir }}/deploy/nginx/taskflow.conf"
+        dest: "{{ prod_dir }}/nginx/taskflow.conf"
+        mode: "0640"
+      notify: Recharger le proxy
+
+    - name: "Rendre le .env (secrets : 0600, jamais dans Git)"
+      ansible.builtin.template:
+        src: env.j2
+        dest: "{{ prod_dir }}/.env"
+        mode: "0600"
+      notify: Rappeler de redéployer
+
+    - name: Générer le certificat auto-signé (une seule fois)
+      ansible.builtin.command:
+        cmd: ./gen-cert.sh
+        chdir: "{{ prod_dir }}"
+        creates: "{{ prod_dir }}/certs/taskflow.crt" # sinon : « changed » à chaque passage
+
+  handlers:
+    - name: Lister les services en marche
+      ansible.builtin.command:
+        cmd: docker compose -f compose.prod.yaml ps --services --status running
+        chdir: "{{ prod_dir }}"
+      register: running_services
+      changed_when: false
+      failed_when: false # la stack n'est peut-être pas encore lancée
+      listen: Recharger le proxy
+
+    - name: Recharger Nginx sans coupure (si le proxy tourne)
+      ansible.builtin.command:
+        cmd: docker compose -f compose.prod.yaml exec -T proxy nginx -s reload
+        chdir: "{{ prod_dir }}"
+      when: "'proxy' in (running_services.stdout_lines | default([]))"
+      changed_when: true
+      listen: Recharger le proxy
+
+    - name: Rappeler de redéployer
+      ansible.builtin.debug:
+        msg: ".env modifié : relancez ./deploy.sh <tag> dans {{ prod_dir }} (ou le workflow Release)"

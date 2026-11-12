@@ -176,4 +176,21 @@ describe('API TaskFlow', () => {
       );
     });
   });
+
+  describe('durcissement (Jour 5)', () => {
+    it("n'annonce pas Express dans l'en-tête X-Powered-By", async () => {
+      const response = await request(app).get('/api/tasks');
+
+      expect(response.headers['x-powered-by']).toBeUndefined();
+    });
+
+    it('refuse un corps de plus de 16 ko avec un 413', async () => {
+      const response = await request(app)
+        .post('/api/tasks')
+        .send({ title: 'x'.repeat(20 * 1024) });
+
+      expect(response.status).toBe(413);
+      expect(response.body).toEqual({ error: 'Requête trop volumineuse' });
+    });
+  });
 });

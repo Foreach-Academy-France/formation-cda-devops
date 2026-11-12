@@ -1,14 +1,16 @@
 # =============================================================================
-# Runner self-hosted GitHub Actions — lab TaskFlow
-#   cp .env.example .env   puis renseigner REPO_URL, RUNNER_TOKEN, DEPLOY_DIR
+# Runner self-hosted GitHub Actions — lab TaskFlow (CDA)
+#   cp .env.example .env    puis renseigner REPO_URL, RUNNER_TOKEN, PROD_DIR, STAGING_DIR
 #   docker compose up -d --build
+# Il reçoit les jobs `runs-on: [self-hosted, lab]` (deploy-staging, deploy-production)
+# et pilote le Docker de VOTRE poste.
 # =============================================================================
 name: taskflow-runner
 
 services:
   runner:
     build: .
-    image: taskflow-dwwm-runner:latest
+    image: taskflow-cda-runner:latest
     container_name: taskflow-runner
     env_file: .env
     environment:
@@ -17,17 +19,20 @@ services:
       LABELS: ${LABELS:-self-hosted,lab}
       RUNNER_WORKDIR: /tmp/runner/work
       DISABLE_AUTO_UPDATE: "1"
-      DEPLOY_DIR: ${DEPLOY_DIR:?Renseignez DEPLOY_DIR dans .env}   # lu par les jobs : $DEPLOY_DIR
+      # Lus par les jobs : $PROD_DIR et $STAGING_DIR
+      PROD_DIR: ${PROD_DIR:?Renseignez PROD_DIR dans .env}
+      STAGING_DIR: ${STAGING_DIR:?Renseignez STAGING_DIR dans .env}
     volumes:
       # Le runner pilote le Docker de VOTRE poste via ce socket (il ne lance pas
-      # son propre Docker). Podman rootless : voir README.md, section « Podman ».
+      # son propre Docker). C'est l'équivalent d'un accès root au poste : voir README.
       - /var/run/docker.sock:/var/run/docker.sock
-      # MÊME chemin dans le conteneur et sur le poste. Pourquoi ? Quand le runner
-      # exécute « docker compose up », c'est le daemon Docker du POSTE qui lit les
-      # chemins de volumes (./nginx/…, ./certs/…). Si le chemin n'existe pas à
-      # l'identique sur le poste, Docker monterait un dossier vide.
-      - ${DEPLOY_DIR}:${DEPLOY_DIR}
+      # MÊME chemin dans le conteneur et sur le poste. Quand le runner lance
+      # « docker compose up », c'est le daemon du POSTE qui résout les volumes
+      # (./nginx/taskflow.conf, ./certs...) : le chemin doit exister à l'identique.
+      - ${PROD_DIR}:${PROD_DIR}
+      - ${STAGING_DIR}:${STAGING_DIR}
       - ./work:/tmp/runner/work
     extra_hosts:
-      - "host.docker.internal:host-gateway"   # le smoke test joint le proxy publié sur le poste
+      # Les smoke tests joignent les ports publiés sur le poste (8081, 443/8443)
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped

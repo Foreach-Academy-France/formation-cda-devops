@@ -1,0 +1,81 @@
+# =============================================================================
+# Jenkins Configuration as Code (JCasC) : tout Jenkins décrit dans un fichier.
+# Les ${VAR} sont remplacées par les variables d'environnement du conteneur.
+# =============================================================================
+jenkins:
+  systemMessage: "Démo CDA DevOps — Jenkins local, jetable, à ne pas exposer."
+  numExecutors: 4
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: admin
+          password: "${JENKINS_ADMIN_PASSWORD:-admin}"
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+
+unclassified:
+  location:
+    url: "http://localhost:${JENKINS_PORT:-8090}/"
+
+# Jobs créés au démarrage avec le plugin Job DSL
+jobs:
+  # 1. Un pipeline autonome (aucun dépôt, aucun conteneur) pour lire la syntaxe
+  - script: |
+      pipelineJob('01-hello-pipeline') {
+        description('Syntaxe déclarative : stages, parallel, matrix, post, artefact.')
+        definition {
+          cps {
+            sandbox(true)
+            script('''
+      pipeline {
+        agent any
+        options { timeout(time: 5, unit: 'MINUTES') }
+        stages {
+          stage('build') {
+            steps {
+              sh 'mkdir -p dist && echo "<h1>TaskFlow</h1>" > dist/index.html'
+            }
+          }
+          stage('verifications') {
+            parallel {
+              stage('lint')  { steps { sh 'echo "lint OK"' } }
+              stage('tests') { steps { sh 'echo "27 tests OK"' } }
+            }
+          }
+          stage('compatibilite') {
+            matrix {
+              axes { axis { name 'NODE_VERSION'; values '20', '22' } }
+              stages {
+                stage('node') { steps { sh 'echo "tests sur Node $NODE_VERSION"' } }
+              }
+            }
+          }
+        }
+        post {
+          success { archiveArtifacts artifacts: 'dist/**' }
+          failure { echo 'Pipeline rouge : lire le stage en échec' }
+        }
+      }
+      ''')
+          }
+        }
+      }
+  # 2. La CI de TaskFlow : ci-autres-outils/Jenkinsfile, lu depuis le dépôt Git
+  - script: |
+      pipelineJob('02-taskflow-ci') {
+        description('Équivalent Jenkins de ci.yml : ci-autres-outils/Jenkinsfile.')
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote { url('${TASKFLOW_REPO_URL:-file:///srv/taskflow.git}') }
+                branch('*/${TASKFLOW_BRANCH:-main}')
+              }
+            }
+            scriptPath('ci-autres-outils/Jenkinsfile')
+            lightweight(false)
+          }
+        }
+      }

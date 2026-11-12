@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 420" font-family="Helvetica, Arial, sans-serif" font-size="15">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1e3a8a"/></marker>
+  </defs>
+  <rect width="1100" height="420" fill="#ffffff"/>
+  <!-- lanes -->
+  <rect x="10" y="10" width="1080" height="175" rx="10" fill="#eff6ff" stroke="#93c5fd"/>
+  <text x="24" y="34" font-weight="bold" fill="#1e3a8a">GitHub (cloud) — runners ubuntu-latest</text>
+  <rect x="10" y="235" width="1080" height="175" rx="10" fill="#f0fdf4" stroke="#86efac"/>
+  <text x="24" y="400" font-weight="bold" fill="#166534">Votre poste — runner self-hosted [self-hosted, lab] (va chercher les jobs)</text>
+  <!-- jobs cloud -->
+  <rect x="30" y="60" width="130" height="70" rx="8" fill="#fff" stroke="#2563eb" stroke-width="2"/>
+  <text x="95" y="90" text-anchor="middle" font-weight="bold">prepare</text>
+  <text x="95" y="112" text-anchor="middle" font-size="13">tag = SHA court</text>
+  <rect x="200" y="50" width="400" height="90" rx="8" fill="#fff" stroke="#2563eb" stroke-width="2"/>
+  <text x="400" y="72" text-anchor="middle" font-weight="bold">images  (matrice api, front)</text>
+  <rect x="215" y="85" width="100" height="40" rx="6" fill="#dbeafe"/><text x="265" y="110" text-anchor="middle">build</text>
+  <rect x="345" y="85" width="110" height="40" rx="6" fill="#fee2e2" stroke="#dc2626"/><text x="400" y="104" text-anchor="middle">Trivy</text><text x="400" y="120" text-anchor="middle" font-size="12">CRITICAL = stop</text>
+  <rect x="485" y="85" width="100" height="40" rx="6" fill="#dbeafe"/><text x="535" y="110" text-anchor="middle">push</text>
+  <line x1="315" y1="105" x2="343" y2="105" stroke="#1e3a8a" marker-end="url(#a)"/>
+  <line x1="455" y1="105" x2="483" y2="105" stroke="#1e3a8a" marker-end="url(#a)"/>
+  <line x1="160" y1="95" x2="198" y2="95" stroke="#1e3a8a" stroke-width="2" marker-end="url(#a)"/>
+  <!-- registry -->
+  <rect x="660" y="55" width="200" height="80" rx="8" fill="#fef9c3" stroke="#ca8a04" stroke-width="2"/>
+  <text x="760" y="85" text-anchor="middle" font-weight="bold">ghcr.io</text>
+  <text x="760" y="107" text-anchor="middle" font-size="13">taskflow-api:&lt;sha&gt;</text>
+  <text x="760" y="124" text-anchor="middle" font-size="13">taskflow-front:&lt;sha&gt;</text>
+  <line x1="585" y1="95" x2="658" y2="95" stroke="#1e3a8a" stroke-width="2" marker-end="url(#a)"/>
+  <!-- approval -->
+  <rect x="890" y="60" width="185" height="70" rx="8" fill="#fff" stroke="#9333ea" stroke-width="2" stroke-dasharray="6 4"/>
+  <text x="982" y="88" text-anchor="middle" font-weight="bold" fill="#7e22ce">Approbation</text>
+  <text x="982" y="110" text-anchor="middle" font-size="13">environment production</text>
+  <!-- deploy jobs -->
+  <rect x="200" y="260" width="300" height="100" rx="8" fill="#fff" stroke="#16a34a" stroke-width="2"/>
+  <text x="350" y="285" text-anchor="middle" font-weight="bold">deploy-staging</text>
+  <text x="350" y="308" text-anchor="middle" font-size="13">~/taskflow-staging · compose.staging.yaml</text>
+  <text x="350" y="328" text-anchor="middle" font-size="13">deploy.sh &lt;sha&gt; → smoke test :8081</text>
+  <text x="350" y="348" text-anchor="middle" font-size="13" fill="#166534">automatique</text>
+  <rect x="660" y="260" width="415" height="100" rx="8" fill="#fff" stroke="#16a34a" stroke-width="2"/>
+  <text x="867" y="285" text-anchor="middle" font-weight="bold">deploy-production</text>
+  <text x="867" y="308" text-anchor="middle" font-size="13">~/taskflow-prod · backup → deploy.sh &lt;même sha&gt;</text>
+  <text x="867" y="328" text-anchor="middle" font-size="13">smoke test HTTPS (certificat vérifié)</text>
+  <text x="867" y="348" text-anchor="middle" font-size="13" fill="#b91c1c">KO → rollback auto vers .previous_tag</text>
+  <line x1="400" y1="140" x2="350" y2="258" stroke="#1e3a8a" stroke-width="2" marker-end="url(#a)"/>
+  <line x1="500" y1="310" x2="658" y2="310" stroke="#1e3a8a" stroke-width="2" marker-end="url(#a)"/>
+  <text x="580" y="300" text-anchor="middle" font-size="12">si vert</text>
+  <line x1="982" y1="130" x2="982" y2="258" stroke="#7e22ce" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#a)"/>
+  <line x1="760" y1="135" x2="760" y2="258" stroke="#ca8a04" stroke-dasharray="3 3" marker-end="url(#a)"/>
+  <text x="768" y="200" font-size="12" fill="#854d0e">pull</text>
+  <line x1="700" y1="135" x2="470" y2="258" stroke="#ca8a04" stroke-dasharray="3 3" marker-end="url(#a)"/>
+  <text x="560" y="205" font-size="12" fill="#854d0e">pull</text>
+</svg>

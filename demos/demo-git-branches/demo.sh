@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Démo J1 — Bloc 2.2 : branches, fast-forward et merge commit
+# Démo J1 — Bloc 2.1 : branches, fast-forward, merge commit et squash
 #   Usage   : bash demo.sh            (pauses entre les étapes)
 #             DEMO_AUTO=1 bash demo.sh (sans pause, pour tester)
 #   Effet   : crée un dépôt jetable dans /tmp (mktemp), le supprime à la fin
@@ -84,8 +84,26 @@ echo "→ Un commit de merge à DEUX parents réunit les deux lignes."
 run "git log -1 --format='Parents du dernier commit : %p'"
 pause
 
-etape "7. Ménage : supprimer les branches fusionnées"
+etape "7. Squash : toute la branche en UN commit (le bouton « Squash and merge » de GitHub)"
+run "git switch -c feature/tasks"
+echo "app.get('/api/tasks', (req, res) => res.json([]));" >> server.js
+run "git commit -q -am 'feat(api): liste les tâches'"
+echo "app.post('/api/tasks', (req, res) => res.status(201).end());" >> server.js
+run "git commit -q -am 'wip: création'"
+run "git switch main"
+run "git merge --squash feature/tasks"
+run "git commit -q -m 'feat(api): ajoute les routes /api/tasks'"
+graphe
+echo "→ main a reçu UN commit ordinaire (un seul parent) ; les 2 commits de la branche restent à côté."
+run "git log -1 --format='Parents du dernier commit : %p'"
+pause
+
+etape "8. Ménage : supprimer les branches fusionnées"
 run "git branch --merged"
+echo "→ feature/tasks n'apparaît PAS : ses commits ne sont pas des ancêtres de main (squash)."
 run "git branch -d feature/health feature/logs"
+run "git branch -d feature/tasks || true"
+echo "→ -d refuse : il faut -D, APRÈS avoir vérifié que la PR est bien fusionnée."
+run "git branch -D feature/tasks"
 graphe
 echo -e "\n✅ Fin de la démo branches."

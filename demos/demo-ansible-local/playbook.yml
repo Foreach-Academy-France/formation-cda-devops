@@ -1,0 +1,44 @@
+# Démo J4 — Bloc 5.3 : préparer un dossier de déploiement, de façon idempotente.
+#   ansible-playbook -i inventory.ini playbook.yml -e demo_dir=/tmp/demo-ansible
+- name: Préparer le dossier de déploiement de la démo
+  hosts: demo
+  gather_facts: false
+  vars:
+    demo_dir: /tmp/demo-ansible
+    app_env: production
+    app_version: "1.0.0"
+    https_port: 443
+    # Généré au premier passage puis relu : le playbook reste idempotent
+    postgres_password: "{{ lookup('ansible.builtin.password', demo_dir ~ '/.db-password', chars=['ascii_letters', 'digits'], length=24) }}"
+
+  tasks:
+    - name: Créer le dossier et ses sous-dossiers
+      ansible.builtin.file:
+        path: "{{ demo_dir }}/{{ item.path }}"
+        state: directory
+        mode: "{{ item.mode }}"
+      loop:
+        - { path: "", mode: "0750" }
+        - { path: nginx, mode: "0750" }
+        - { path: certs, mode: "0700" } # clé privée TLS : personne d'autre
+        - { path: backups, mode: "0700" }
+
+    - name: Rendre le .env (secrets, 0600)
+      ansible.builtin.template:
+        src: templates/env.j2
+        dest: "{{ demo_dir }}/.env"
+        mode: "0600"
+      notify: Redéployer
+
+    - name: Certificat auto-signé (seulement s'il n'existe pas)
+      ansible.builtin.command:
+        cmd: >-
+          openssl req -x509 -nodes -newkey rsa:2048 -days 365
+          -subj /CN=taskflow.localhost
+          -keyout {{ demo_dir }}/certs/taskflow.key -out {{ demo_dir }}/certs/taskflow.crt
+        creates: "{{ demo_dir }}/certs/taskflow.crt" # sans « creates », la tâche serait « changed » à chaque passage
+
+  handlers:
+    - name: Redéployer
+      ansible.builtin.debug:
+        msg: "Le .env a changé : il faudrait relancer ./deploy.sh <tag> (handler déclenché par notify)"

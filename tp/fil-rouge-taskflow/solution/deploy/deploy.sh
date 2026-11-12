@@ -1,57 +1,62 @@
 #!/usr/bin/env bash
 # ============================================================================
-# deploy.sh : met à jour la "prod" TaskFlow vers une version donnée.
+# deploy.sh : met un environnement TaskFlow (staging ou prod) à une version donnée.
 #
-# Placé dans le dossier de déploiement (~/taskflow-prod, avec compose.prod.yaml
-# et .env). À lancer DEPUIS ce dossier, ou en précisant DEPLOY_DIR :
-#     ./deploy.sh <tag>
-#     <tag> = SHA court du commit (ex: a1b2c3d) ou "latest".
-# Rollback : relancer avec le tag d'une version précédente.
+# À lancer depuis le dossier de l'environnement (PROD_DIR ou STAGING_DIR), qui
+# contient le fichier compose et le .env :
+#     ./deploy.sh <tag>                                    # prod (compose.prod.yaml)
+#     COMPOSE_FILE=compose.staging.yaml ./deploy.sh <tag>  # staging
+#   <tag> = SHA court (7 caractères) d'une image publiée, ou "latest".
+#
+# Rollback : relancer avec un tag précédent (voir .previous_tag).
+# Le script est idempotent : le relancer avec le même tag ne casse rien.
 # ============================================================================
-
-# Mode "strict" : arrêt à la première erreur (-e), variables non définies interdites
-# (-u), erreurs détectées au milieu d'un pipe (pipefail).
 set -euo pipefail
 
-# Premier argument obligatoire ; le message après ":?" s'affiche s'il manque.
 TAG="${1:?Usage: ./deploy.sh <tag>  (ex: ./deploy.sh a1b2c3d)}"
+if [[ ! "$TAG" =~ ^([0-9a-f]{7}|latest)$ ]]; then
+  echo "Tag invalide : '$TAG' (attendu : SHA court de 7 caractères ou 'latest')" >&2
+  exit 1
+fi
 
-# Dossier contenant compose.prod.yaml et .env (par défaut : le dossier du script)
 DEPLOY_DIR="${DEPLOY_DIR:-$(cd "$(dirname "$0")" && pwd)}"
 cd "$DEPLOY_DIR"
 
-# Raccourci : la commande compose complète. IMAGE_TAG est lu par compose.prod.yaml.
-compose() {
-  IMAGE_TAG="$TAG" docker compose -f compose.prod.yaml "$@"
-}
+# docker compose lit lui-même COMPOSE_FILE : pas besoin de -f partout.
+export COMPOSE_FILE="${COMPOSE_FILE:-compose.prod.yaml}"
+export IMAGE_TAG="$TAG"
 
-echo "==> Déploiement de la version : $TAG (dans $DEPLOY_DIR)"
+[ -f "$COMPOSE_FILE" ] || { echo "Fichier $COMPOSE_FILE absent de $DEPLOY_DIR" >&2; exit 1; }
+[ -f .env ] || { echo ".env absent de $DEPLOY_DIR : il se crée à la main (jamais dans Git)" >&2; exit 1; }
 
-echo "==> Téléchargement des images (pull)"
-compose pull
+echo "==> $COMPOSE_FILE : déploiement de $TAG dans $DEPLOY_DIR"
 
-# `up -d` ne recrée que les conteneurs dont l'image ou la configuration a changé.
-echo "==> Redémarrage des services"
-compose up -d --remove-orphans
+# Mémorise la version actuelle AVANT de la remplacer : c'est la cible du rollback.
+if [ -f .deployed_tag ] && [ "$(cat .deployed_tag)" != "$TAG" ]; then
+  cp .deployed_tag .previous_tag
+fi
 
-# Le proxy a mémorisé l'adresse IP du front au démarrage : si le front vient d'être
-# recréé, elle a pu changer. Un rechargement (sans coupure) la lui fait redécouvrir.
-# On réessaie quelques fois : le front peut mettre un instant à être joignable.
-echo "==> Rechargement du proxy"
-for attempt in 1 2 3 4 5 6 7 8 9 10; do
-  if compose exec -T proxy nginx -s reload; then break; fi
-  if [ "$attempt" = 10 ]; then echo "Rechargement du proxy impossible" >&2; exit 1; fi
-  sleep 3
-done
+echo "==> Téléchargement des images"
+docker compose pull --quiet
 
-echo "==> État des services"
-compose ps
+# --wait : attend que les healthchecks soient verts (échec si un service reste
+# unhealthy). up -d ne recrée que les conteneurs dont l'image ou la config a changé.
+echo "==> Mise à jour des services"
+docker compose up -d --remove-orphans --wait --wait-timeout 120
 
-# Mémorise la version en ligne (utile pour savoir à quoi revenir en cas de souci)
+# Le proxy (prod seulement) a résolu l'IP du front au démarrage : après un
+# redéploiement du front, on le recharge (sans coupure) pour qu'il la redécouvre.
+if docker compose config --services | grep -qx proxy; then
+  echo "==> Rechargement du proxy"
+  docker compose exec -T proxy nginx -t -q
+  docker compose exec -T proxy nginx -s reload
+fi
+
 echo "$TAG" > .deployed_tag
+docker compose ps --format 'table {{.Service}}\t{{.Image}}\t{{.Status}}'
 
-# Supprime les images devenues inutiles pour ne pas remplir le disque.
-echo "==> Nettoyage des images inutilisées"
-docker image prune -f
+# Images orphelines (« dangling ») seulement : les anciennes versions taguées
+# restent en cache, ce qui rend un rollback quasi instantané.
+docker image prune -f >/dev/null
 
-echo "==> Déploiement terminé : $TAG"
+echo "==> Déployé : $TAG (précédent : $(cat .previous_tag 2>/dev/null || echo aucun))"

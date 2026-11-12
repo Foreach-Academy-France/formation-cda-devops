@@ -1,0 +1,57 @@
+# =============================================================================
+# Démo J2 — Bloc 3.3 : un premier .gitlab-ci.yml, commenté ligne à ligne.
+# Même contenu que le job Jenkins « 01-hello-pipeline » et que hello.yml
+# (demos/demo-actions-hello/) : comparez les trois syntaxes.
+#
+# Essai : créer un projet vide sur gitlab.com, y déposer ce fichier à la racine
+# sous le nom .gitlab-ci.yml, puis Build > Pipelines.
+# Validation sans exécuter : Build > Pipeline editor > Validate.
+# =============================================================================
+
+# Les étapes du pipeline, dans l'ordre. Les jobs d'une même étape (stage)
+# tournent en parallèle ; une étape ne démarre que si la précédente est verte.
+#   ≈ GitHub Actions : jobs + needs   ≈ Jenkins : stages / parallel
+stages:
+  - build
+  - verify
+
+# Quand créer un pipeline ?   ≈ on: pull_request + push: branches: [main]
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"   # chaque merge request
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH        # chaque push sur main
+
+# Valeurs communes à tous les jobs   ≈ runs-on + timeout-minutes
+default:
+  image: alpine:3.21        # chaque job tourne dans un conteneur de cette image
+  timeout: 5m
+
+variables:                  # ≈ env: au niveau du workflow
+  APP_NAME: TaskFlow
+
+# Un job = une clé de premier niveau (le nom est libre, sauf mots réservés).
+build:
+  stage: build
+  script:                   # ≈ steps: - run:   (le dépôt est déjà cloné : pas de checkout)
+    - echo "Build de $APP_NAME, commit $CI_COMMIT_SHORT_SHA, branche $CI_COMMIT_REF_NAME"
+    - mkdir -p dist && echo "<h1>$APP_NAME</h1>" > dist/index.html
+  artifacts:                # ≈ actions/upload-artifact ; transmis aux jobs suivants
+    paths: [dist/]
+    expire_in: 1 day
+
+lint:
+  stage: verify
+  script:
+    - echo "lint OK"
+
+tests:
+  stage: verify
+  # ≈ strategy.matrix : deux jobs « tests: [20] » et « tests: [22] »
+  parallel:
+    matrix:
+      - NODE_VERSION: ["20", "22"]
+  image: node:${NODE_VERSION}-alpine
+  script:
+    - node --version
+    - test -f dist/index.html    # l'artefact du job build est bien là
+    - echo "27 tests OK sur Node $NODE_VERSION"

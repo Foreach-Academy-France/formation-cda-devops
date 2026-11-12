@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 360" font-family="Helvetica, Arial, sans-serif" font-size="15">
+  <defs><marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1e3a8a"/></marker></defs>
+  <rect width="1100" height="360" fill="#ffffff"/>
+  <text x="270" y="35" text-anchor="middle" font-weight="bold" font-size="19" fill="#1e3a8a">Push : le CI va vers le serveur</text>
+  <rect x="40" y="70" width="180" height="80" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+  <text x="130" y="105" text-anchor="middle" font-weight="bold">GitHub Actions</text><text x="130" y="127" text-anchor="middle" font-size="13">ubuntu-latest</text>
+  <rect x="330" y="70" width="180" height="80" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
+  <text x="420" y="105" text-anchor="middle" font-weight="bold">Serveur</text><text x="420" y="127" text-anchor="middle" font-size="13">sshd ouvert</text>
+  <line x1="220" y1="110" x2="328" y2="110" stroke="#1e3a8a" stroke-width="2" marker-end="url(#b)"/>
+  <text x="275" y="100" text-anchor="middle" font-size="13">ssh / scp</text>
+  <text x="40" y="190" font-size="14">• secret : clé SSH privée dans GitHub</text>
+  <text x="40" y="214" font-size="14">• port entrant à ouvrir (et à protéger)</text>
+  <text x="40" y="238" font-size="14">• simple, aucun agent à installer</text>
+  <text x="40" y="262" font-size="14">• Ansible, Capistrano, scripts SSH</text>
+  <line x1="550" y1="20" x2="550" y2="340" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="830" y="35" text-anchor="middle" font-weight="bold" font-size="19" fill="#166534">Pull : l'agent va chercher le travail</text>
+  <rect x="600" y="70" width="180" height="80" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+  <text x="690" y="105" text-anchor="middle" font-weight="bold">GitHub</text><text x="690" y="127" text-anchor="middle" font-size="13">jobs, Git, registre</text>
+  <rect x="890" y="70" width="190" height="80" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
+  <text x="985" y="100" text-anchor="middle" font-weight="bold">Machine cible</text><text x="985" y="122" text-anchor="middle" font-size="13">runner / ArgoCD /</text><text x="985" y="140" text-anchor="middle" font-size="13">Watchtower</text>
+  <line x1="888" y1="110" x2="782" y2="110" stroke="#1e3a8a" stroke-width="2" marker-end="url(#b)"/>
+  <text x="835" y="100" text-anchor="middle" font-size="13">HTTPS sortant</text>
+  <text x="600" y="190" font-size="14">• aucun port entrant (pare-feu fermé)</text>
+  <text x="600" y="214" font-size="14">• l'agent a des droits forts sur la machine</text>
+  <text x="600" y="238" font-size="14">• GitOps : l'état voulu est dans Git</text>
+  <text x="600" y="262" font-size="14">• notre TP : runner self-hosted (socket Docker)</text>
+</svg>

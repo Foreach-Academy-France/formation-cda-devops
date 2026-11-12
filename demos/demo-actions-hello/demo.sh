@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Démo J3 — Bloc 4.1 : premier workflow GitHub Actions
+# Démo Jour 2 — Bloc 3.2 : premier workflow GitHub Actions
 #   Usage   : bash demo.sh
 #               → prépare un dépôt local jetable contenant .github/workflows/hello.yml
 #             DEMO_GH_REPO=hello-actions-demo bash demo.sh
@@ -18,7 +18,7 @@ WORKDIR="$(mktemp -d -t demo-actions-XXXXXX)"
 
 cleanup() {
   rm -rf "$WORKDIR"
-  echo -e "\n🧹 Dossier temporaire supprimé ($WORKDIR)"
+  echo -e "\nDossier temporaire supprimé ($WORKDIR)"
   if [[ -n "$DEMO_GH_REPO" ]]; then
     echo "   Dépôt GitHub conservé. Pour le supprimer : gh repo delete $DEMO_GH_REPO --yes"
   fi
@@ -28,7 +28,7 @@ trap cleanup EXIT
 etape() { echo -e "\n\033[1;34m=== $* ===\033[0m"; }
 pause() {
   if [[ "$DEMO_AUTO" == "1" ]]; then return 0; fi
-  read -r -p $'\n▶ Entrée pour continuer… ' _
+  read -r -p $'\n> Entrée pour continuer… ' _
 }
 run() { echo -e "\033[1;32m\$ $*\033[0m"; eval "$*"; }
 
@@ -64,12 +64,12 @@ Relancez avec DEMO_GH_REPO=<nom> pour créer le dépôt privé automatiquement, 
 
 Puis montrez l'onglet « Actions » du dépôt dans le navigateur.
 TXT
-  echo -e "\n✅ Partie locale terminée."
+  echo -e "\nPartie locale terminée."
   exit 0
 fi
 
-command -v gh >/dev/null || { echo "❌ gh (GitHub CLI) est requis pour DEMO_GH_REPO" >&2; exit 1; }
-gh auth status >/dev/null 2>&1 || { echo "❌ gh n'est pas authentifié : gh auth login" >&2; exit 1; }
+command -v gh >/dev/null || { echo "gh (GitHub CLI) est requis pour DEMO_GH_REPO" >&2; exit 1; }
+gh auth status >/dev/null 2>&1 || { echo "gh n'est pas authentifié : gh auth login" >&2; exit 1; }
 
 etape "4. Créer le dépôt privé et pousser"
 run "gh repo create '$DEMO_GH_REPO' --private --source . --push"
@@ -85,4 +85,4 @@ etape "6. Déclenchement manuel avec un paramètre (workflow_dispatch)"
 run "gh workflow run hello.yml -f prenom='la salle'"
 sleep 5
 run "gh run list --limit 3"
-echo -e "\n✅ Montrez maintenant l'onglet Actions : jobs, steps, logs, résumé, durée."
+echo -e "\nMontrez maintenant l'onglet Actions : jobs, steps, logs, résumé, durée."

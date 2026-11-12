@@ -1,0 +1,61 @@
+// Corrigé de l'exercice 2.5 : ci-catalogue.yml traduit en Jenkinsfile déclaratif
+pipeline {
+  agent none
+  options {
+    disableConcurrentBuilds(abortPrevious: true)   // ≈ concurrency
+    buildDiscarder(logRotator(numToKeepStr: '20'))
+  }
+  environment {
+    npm_config_cache = '/tmp/.npm'                 // HOME non inscriptible dans le conteneur
+  }
+  stages {
+    stage('verify') {
+      parallel {                                   // ≈ jobs lint et test sans needs
+        stage('lint') {
+          agent { docker { image 'node:22-alpine' } }
+          options { timeout(time: 5, unit: 'MINUTES') }
+          steps {
+            sh 'npm ci'
+            sh 'npm run lint'
+          }
+        }
+        stage('test') {
+          options { timeout(time: 10, unit: 'MINUTES') }
+          // Pas de matrix possible à l'intérieur de parallel : on boucle sur les versions
+          agent any
+          steps {
+            script {
+              def net = "ci-${env.BUILD_TAG}".replaceAll(/[^A-Za-z0-9_.-]/, '-')
+              sh "docker network create ${net}"
+              try {
+                docker.image('redis:7-alpine').withRun("--network ${net} --network-alias redis") {
+                  for (v in ['20', '22']) {
+                    docker.image("node:${v}-alpine").inside("--network ${net}") {
+                      withEnv(['REDIS_URL=redis://redis:6379']) {
+                        sh 'npm ci'
+                        sh 'npm test'
+                      }
+                    }
+                  }
+                }
+              } finally {
+                sh "docker network rm ${net} || true"
+              }
+            }
+          }
+        }
+      }
+    }
+    stage('build') {                               // ≈ needs: [lint, test]
+      agent { docker { image 'node:22-alpine' } }
+      options { timeout(time: 5, unit: 'MINUTES') }
+      steps {
+        sh 'npm ci'
+        sh 'npm run build'
+      }
+      post {
+        success { archiveArtifacts artifacts: 'dist/**' }
+      }
+    }
+  }
+}
