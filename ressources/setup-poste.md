@@ -96,6 +96,22 @@ sudo usermod -aG docker $USER     # autorise docker sans sudo
 newgrp docker                      # ou fermer/rouvrir la session
 ```
 
+### Podman au lieu de Docker
+Podman fonctionne pour tout le fil rouge, à trois réglages près :
+```bash
+# 1. Construire au format Docker : le format OCI (défaut de Podman) n'a pas de HEALTHCHECK.
+#    Symptôme : « HEALTHCHECK is not supported for OCI image format and will be ignored »,
+#    puis `depends_on: condition: service_healthy` qui attend indéfiniment.
+echo 'export BUILDAH_FORMAT=docker' >> ~/.bashrc     # ou ~/.zshrc
+
+# 2. Socket compatible Docker (OpenTofu, runner GitHub, Jenkins de démo)
+systemctl --user enable --now podman.socket
+echo 'export DOCKER_HOST=unix://$XDG_RUNTIME_DIR/podman/podman.sock' >> ~/.bashrc
+
+# 3. Vérifier (nouveau terminal), après avoir reconstruit les images : `docker compose build --no-cache`
+podman image inspect starter_api | grep -A3 '"Healthcheck"'   # doit afficher la commande wget
+```
+
 ---
 
 ## 5. Node.js 20
